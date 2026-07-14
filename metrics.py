@@ -34,6 +34,8 @@ def summarize(res) -> dict:
         "initial_capital": res.initial_capital, "final_equity": final,
         "total_return": total_return, "days": days, "monthly_return": monthly,
         "num_trades": n, "win_rate": len(wins) / n if n else 0.0,
+        "n_win": len(wins), "n_loss": len(losses),
+        "gross_win": round(gross_win, 2), "gross_loss": round(-gross_loss, 2),
         "avg_win": avg_win, "avg_loss": avg_loss,
         "realized_rr": (avg_win / -avg_loss) if avg_loss < 0 else float("inf"),
         "profit_factor": gross_win / gross_loss if gross_loss > 0 else float("inf"),

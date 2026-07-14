@@ -76,3 +76,30 @@ def top_gainers(n=10, quote="USDT", min_volume_usd=20_000_000, max_change_pct=40
             rows.append((sym, pct))
     rows.sort(key=lambda x: x[1], reverse=True)
     return [r[0] for r in rows[:n]]
+
+
+# Loại token đòn bẩy / stablecoin khỏi universe
+_STABLES = {"USDC", "FDUSD", "TUSD", "DAI", "BUSD", "USDP", "EUR", "GBP", "AEUR"}
+_LEVERAGED = ("UP/", "DOWN/", "BULL/", "BEAR/")
+
+
+def top_symbols_by_volume(n=50, quote="USDT", exchange=None, exclude_special=True) -> list:
+    """
+    Lấy 'n' cặp coin có KHỐI LƯỢNG 24h lớn nhất (đại diện 'toàn thị trường' để xếp hạng
+    top gainer). Bỏ stablecoin và token đòn bẩy. Đây là universe để engine chọn động.
+    """
+    ex = exchange or make_exchange()
+    tickers = ex.fetch_tickers()
+    rows = []
+    for sym, t in tickers.items():
+        if not sym.endswith("/" + quote):
+            continue
+        base = sym.split("/")[0]
+        if exclude_special and (base in _STABLES or any(x in sym for x in _LEVERAGED)):
+            continue
+        qv = t.get("quoteVolume")
+        if qv is None:
+            continue
+        rows.append((sym, qv))
+    rows.sort(key=lambda x: x[1], reverse=True)
+    return [r[0] for r in rows[:n]]

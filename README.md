@@ -20,6 +20,25 @@ pip install -r requirements.txt
 cp .env.example .env        # rồi mở .env chỉnh cấu hình
 ```
 
+## ⭐ Cách dễ nhất — Dashboard web (giao diện bấm nút)
+```bash
+python webapp.py
+```
+Mở trình duyệt vào **http://127.0.0.1:5000**. Trên dashboard bạn có thể:
+- **Tổng quan**: trạng thái bot, vốn, vị thế đang mở.
+- **Backtest**: chọn coin/tham số → bấm *Chạy Demo* (offline, dữ liệu giả lập) hoặc
+  *Chạy thật* (tải Binance) → xem biểu đồ đường vốn, bảng lệnh, walk-forward, đối chiếu mục tiêu.
+- **Quét tham số**: có tuỳ chọn **"Tự lấy top coin toàn thị trường"** — hệ thống quét cả sàn,
+  lấy N coin thanh khoản cao nhất làm universe, rồi engine chọn động **top-N coin tăng mạnh nhất trong 24h** tại mỗi nến
+  (không nhìn trước tương lai — đúng tinh thần "chỉ đánh coin đang tăng"), rồi quét nhiều
+  tổ hợp TP/SL/top-N và xếp hạng theo hiệu quả + độ ổn định (walk-forward). Có **thanh tiến độ
+  trực tiếp** (chạy tới đâu hiện tới đó) và **tự động lưu mỗi lần quét** vào thư mục `scans/`
+  — mục "Kết quả đã lưu" cho phép mở lại phân tích sau mà không cần chạy lại.
+- **Bot**: bật/tắt paper trading (mặc định Testnet + mô phỏng), xem log trực tiếp.
+- **Cấu hình**: nhập API key, chỉnh risk/TP/SL… và lưu vào `.env` — không cần sửa file tay.
+
+> Mẹo: chưa cấu hình gì cũng bấm được *Chạy Demo* để xem toàn bộ giao diện hoạt động.
+
 ## Bước 0 — Kiểm thử offline (không cần mạng/API)
 ```bash
 python selftest.py

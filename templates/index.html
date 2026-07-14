@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trader 3% — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171e2e; --panel2:#1e2740; --line:#2a3450;
+    --text:#e6ebf5; --muted:#8a97b5; --accent:#3b82f6; --green:#22c55e;
+    --red:#ef4444; --amber:#f59e0b; --navy:#1f3864;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);font-size:14px}
+  header{background:linear-gradient(90deg,#16203a,#0f1420);padding:14px 22px;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  header h1{font-size:18px;margin:0;letter-spacing:.3px}
+  header .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+  .badge.on{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.4)}
+  .badge.off{background:rgba(138,151,181,.12);color:var(--muted);border:1px solid var(--line)}
+  nav{display:flex;gap:4px;padding:12px 22px 0;background:var(--bg)}
+  nav button{background:transparent;border:none;color:var(--muted);padding:10px 16px;
+    border-radius:8px 8px 0 0;cursor:pointer;font-size:14px;font-weight:600}
+  nav button.active{background:var(--panel);color:var(--text)}
+  main{padding:20px 22px 60px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:18px}
+  .card h2{margin:0 0 14px;font-size:15px}
+  .grid{display:grid;gap:14px}
+  .g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:820px){.g4,.g3,.g2{grid-template-columns:1fr 1fr}}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .stat .label{color:var(--muted);font-size:12px} .stat .value{font-size:22px;font-weight:700;margin-top:4px}
+  .stat .value.g{color:var(--green)} .stat .value.r{color:var(--red)}
+  label{display:block;color:var(--muted);font-size:12px;margin:10px 0 4px}
+  input,select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
+    padding:9px 11px;border-radius:8px;font-size:14px}
+  button.btn{background:var(--accent);color:#fff;border:none;padding:10px 18px;border-radius:8px;
+    cursor:pointer;font-weight:600;font-size:14px}
+  button.btn:hover{filter:brightness(1.08)} button.btn.ghost{background:var(--panel2);border:1px solid var(--line)}
+  button.btn.green{background:var(--green)} button.btn.red{background:var(--red)}
+  button.btn:disabled{opacity:.5;cursor:not-allowed}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  .pill{padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600}
+  .pill.TP{background:rgba(34,197,94,.15);color:var(--green)}
+  .pill.SL{background:rgba(239,68,68,.15);color:var(--red)}
+  .pill.Reversal{background:rgba(245,158,11,.15);color:var(--amber)}
+  .pill.Trail{background:rgba(34,197,94,.15);color:var(--green)}
+  .pill.Stall{background:rgba(138,151,181,.15);color:var(--muted)}
+  .pill.TimeStop,.pill.EndOfData{background:rgba(138,151,181,.15);color:var(--muted)}
+  .hidden{display:none}
+  .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .row>div{flex:1;min-width:120px}
+  .verdict{padding:12px 16px;border-radius:10px;font-weight:600;margin-top:12px}
+  .verdict.ok{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.35)}
+  .verdict.no{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.35)}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  pre.log{background:#0a0e17;border:1px solid var(--line);border-radius:8px;padding:12px;
+    height:300px;overflow:auto;font-size:12px;color:#b9c4de;white-space:pre-wrap}
+  .warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f7d488;
+    padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px}
+  .target-ok{color:var(--green)} .target-no{color:var(--red)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>📈 Trader 3% — Bảng điều khiển</h1>
+    <div class="sub">Chiến lược Swing Stoch RSI · Backtest & Paper trading</div>
+  </div>
+  <div id="botBadge" class="badge off">● Bot: đang tắt</div>
+</header>
+
+<nav>
+  <button data-tab="overview" class="active">Tổng quan</button>
+  <button data-tab="signals">Tín hiệu trực tiếp</button>
+  <button data-tab="backtest">Backtest</button>
+  <button data-tab="scan">Quét tham số</button>
+  <button data-tab="bot">Bot</button>
+  <button data-tab="config">Cấu hình</button>
+</nav>
+
+<main>
+  <div class="warn">⚠️ Công cụ giáo dục — không phải lời khuyên đầu tư. Mặc định chạy Testnet + mô phỏng (không tiền thật). Luôn backtest & kiểm chứng trước.</div>
+
+  <!-- OVERVIEW -->
+  <section id="tab-overview">
+    <div class="grid g4">
+      <div class="stat"><div class="label">Trạng thái bot</div><div class="value" id="ovStatus">—</div></div>
+      <div class="stat"><div class="label">Chế độ</div><div class="value" id="ovMode">—</div></div>
+      <div class="stat"><div class="label">Vốn đỉnh (ước tính)</div><div class="value" id="ovPeak">—</div></div>
+      <div class="stat"><div class="label">Vị thế đang mở</div><div class="value" id="ovOpen">—</div></div>
+    </div>
+    <div class="card">
+      <h2>Vị thế đang mở</h2>
+      <table><thead><tr><th>Coin</th><th>Giá vào</th><th>TP</th><th>SL</th><th>Khối lượng</th><th>Mở lúc</th></tr></thead>
+      <tbody id="ovPosBody"><tr><td colspan="6" class="muted">Chưa có vị thế.</td></tr></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Hướng dẫn nhanh</h2>
+      <p class="small muted">1) Tab <b>Backtest</b> → bấm <b>Chạy Demo</b> để xem thử giao diện (dữ liệu giả lập), hoặc <b>Chạy thật</b> để tải dữ liệu Binance.
+      2) Nếu kết quả đạt mục tiêu → tab <b>Cấu hình</b> nhập API key Testnet.
+      3) Tab <b>Bot</b> → Bật để chạy paper trading. Dừng bất cứ lúc nào bằng nút Stop.</p>
+    </div>
+  </section>
+
+  <!-- SIGNALS (live) -->
+  <section id="tab-signals" class="hidden">
+    <div class="card">
+      <h2>Tín hiệu trực tiếp — top gainer hiện tại</h2>
+      <p class="small muted">Lấy top coin tăng mạnh nhất 24h ngay lúc này → phân tích Stoch RSI (8,5,3,3) khung D1/H1 → chỉ ra con nào ĐỦ điều kiện vào lệnh, kèm Entry/TP/SL. <b>Chỉ phân tích để bạn tự quyết & tự đặt lệnh</b> — không tự động giao dịch.</p>
+      <div class="row">
+        <div><label>Số coin top gainer</label><input id="sgN" type="number" value="10"></div>
+        <div><label>Lọc khối lượng tối thiểu ($, 0 = không lọc)</label><input id="sgMinVol" type="number" value="0"></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn green" onclick="loadSignals()">🔄 Quét ngay</button></div>
+        <div style="display:flex;align-items:flex-end"><span id="sgStatus" class="muted small"></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Kết quả phân tích</h2>
+      <div style="overflow:auto">
+      <table><thead><tr>
+        <th>#</th><th>Coin</th><th>24h %</th><th>KL 24h</th>
+        <th>D1 (xu hướng)</th><th>H1 (K/D)</th><th>Tín hiệu vào</th>
+        <th>Entry</th><th>TP (+3%)</th><th>SL</th><th>Ghi chú</th>
+      </tr></thead><tbody id="sigBody"><tr><td colspan="11" class="muted">Bấm "Quét ngay" để phân tích top gainer hiện tại.</td></tr></tbody></table>
+      </div>
+      <p class="small muted" style="margin-top:8px">✅ = đủ điều kiện vào lệnh (D1 tăng + không quá mua, H1 cắt lên từ quá bán, nến xanh). Cột "Ghi chú" cảnh báo coin đã tăng quá nóng hoặc thanh khoản thấp — theo tài liệu nên cân nhắc bỏ qua.</p>
+    </div>
+  </section>
+
+  <!-- BACKTEST -->
+  <section id="tab-backtest" class="hidden">
+    <div class="card">
+      <h2>Thiết lập backtest</h2>
+      <div class="row">
+        <div style="flex:2"><label>Danh sách coin (phẩy ngăn cách)</label><input id="btSymbols" value="SOL/USDT,AVAX/USDT,LINK/USDT"></div>
+        <div><label>Số ngày</label><input id="btDays" type="number" value="180"></div>
+        <div><label>Vốn ($)</label><input id="btCapital" type="number" value="1000"></div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div><label>Rủi ro/lệnh</label><input id="btRisk" type="number" step="0.005" value="0.02"></div>
+        <div><label>Take Profit</label><input id="btTp" type="number" step="0.005" value="0.03"></div>
+        <div><label>Stop Loss</label><input id="btSl" type="number" step="0.005" value="0.02"></div>
+        <div><label>Số lệnh mở tối đa</label><input id="btMaxOpen" type="number" value="3"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px">
+        <button class="btn green" onclick="runBacktest(false)">▶ Chạy thật (Binance)</button>
+        <button class="btn ghost" onclick="runBacktest(true)">🧪 Chạy Demo (offline)</button>
+        <span id="btStatus" class="muted small" style="align-self:center"></span>
+      </div>
+    </div>
+
+    <div id="btResults" class="hidden">
+      <div class="grid g4">
+        <div class="stat"><div class="label">LN/tháng</div><div class="value" id="mMonthly">—</div></div>
+        <div class="stat"><div class="label">Tỷ lệ thắng</div><div class="value" id="mWin">—</div></div>
+        <div class="stat"><div class="label">R:R thực tế</div><div class="value" id="mRr">—</div></div>
+        <div class="stat"><div class="label">Drawdown tối đa</div><div class="value" id="mDd">—</div></div>
+      </div>
+      <div id="verdict" class="verdict"></div>
+      <div class="card"><h2>Đường vốn (Equity Curve)</h2><canvas id="equityChart" height="90"></canvas></div>
+      <div class="grid g2">
+        <div class="card"><h2>Lợi nhuận theo tháng</h2>
+          <table><thead><tr><th>Tháng</th><th>PnL ($)</th><th>Số lệnh</th></tr></thead><tbody id="monthlyBody"></tbody></table></div>
+        <div class="card"><h2>Walk-forward (độ ổn định)</h2>
+          <table><thead><tr><th>Giai đoạn</th><th>LN/th %</th><th>Win %</th><th>Lệnh</th></tr></thead><tbody id="walkBody"></tbody></table></div>
+      </div>
+      <div class="card"><h2>Nhật ký lệnh (<span id="tradeCount">0</span>)</h2>
+        <div style="max-height:340px;overflow:auto">
+        <table><thead><tr><th>Coin</th><th>Vào</th><th>Ra</th><th>Giá vào</th><th>Giá ra</th><th>Lý do</th><th>PnL</th><th>R</th></tr></thead>
+        <tbody id="tradeBody"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCAN -->
+  <section id="tab-scan" class="hidden">
+    <div class="card">
+      <h2>Quét tham số — chọn động top-gainer từng thời điểm</h2>
+      <p class="small muted">Engine chỉ vào lệnh với coin nằm <b>top-N tăng mạnh nhất trong 24h qua</b> tại mỗi nến (tính bằng dữ liệu quá khứ, không nhìn trước) — đúng tinh thần "focus vào coin đang tăng". Công cụ quét nhiều tổ hợp TP/SL/top-N rồi xếp hạng theo hiệu quả & độ ổn định.</p>
+      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px">
+        <label style="margin-top:0;display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer">
+          <input type="checkbox" id="scAuto" style="width:auto" checked onchange="toggleAuto()">
+          <b>Tự lấy top coin toàn thị trường</b> <span class="muted small">(đúng tinh thần: quét cả sàn → xếp hạng top gainer)</span>
+        </label>
+        <div id="scAutoN" style="margin-top:8px;max-width:280px">
+          <label>Số coin lấy theo thanh khoản (universe)</label>
+          <input id="scAutoNVal" type="number" value="50">
+          <span class="small muted">Càng nhiều càng sát "toàn thị trường" nhưng tải càng lâu (30–60 là hợp lý).</span>
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:3"><label>Hoặc nhập rổ coin thủ công (chỉ dùng khi TẮT ô trên)</label>
+          <input id="scUniverse" placeholder="BTC/USDT,ETH/USDT,SOL/USDT,..." disabled></div>
+        <div><label>Số ngày</label><input id="scDays" type="number" value="365"></div>
+        <div><label>Vốn ($)</label><input id="scCapital" type="number" value="1000"></div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div><label>TP quét (%)</label><input id="scTp" value="2,3,4,5"></div>
+        <div><label>SL quét (%)</label><input id="scSl" value="1.5,2,3"></div>
+        <div><label>Top-N gainer</label><input id="scTopn" value="5,10"></div>
+        <div><label>Rủi ro (%)</label><input id="scRisk" value="2"></div>
+        <div><label>Tối thiểu số lệnh</label><input id="scMinTrades" type="number" value="10"></div>
+      </div>
+      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px">
+        <div class="small muted" style="margin-bottom:6px"><b>Cải tiến (bật để so sánh với baseline):</b></div>
+        <div class="row">
+          <div style="flex:1.4"><label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin-top:0">
+            <input type="checkbox" id="scTrend" style="width:auto"> Lọc xu hướng: chỉ vào khi giá > EMA</label></div>
+          <div style="max-width:120px"><label>EMA (nến ngày)</label><input id="scTrendEma" type="number" value="50"></div>
+          <div style="flex:1.4"><label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin-top:0">
+            <input type="checkbox" id="scTrail" style="width:auto"> Trailing stop (bỏ chốt cứng TP, để lời chạy)</label></div>
+          <div style="max-width:120px"><label>Trailing (%)</label><input id="scTrailPct" type="number" step="0.5" value="3"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:1.4"><label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin-top:0">
+            <input type="checkbox" id="scMarket" style="width:auto"> Lọc thị trường tăng: chỉ vào khi BTC > EMA (né downtrend chung)</label></div>
+          <div style="max-width:150px"><label>BTC EMA (nến ngày)</label><input id="scMarketEma" type="number" value="100"></div>
+          <div style="flex:1"></div><div style="flex:1"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:1.4"><label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin-top:0">
+            <input type="checkbox" id="scStall" style="width:auto"> Cắt lệnh chết yểu: sau N giờ chưa có lời thì thoát</label></div>
+          <div style="max-width:150px"><label>Số giờ chờ</label><input id="scStallBars" type="number" value="12"></div>
+          <div style="flex:1"></div><div style="flex:1"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:1.4"><label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin-top:0">
+            <input type="checkbox" id="scGain" style="width:auto"> Né vùng tăng chết: bỏ coin đã tăng trong khoảng</label></div>
+          <div style="max-width:110px"><label>Từ (%)</label><input id="scGainLo" type="number" step="0.5" value="5"></div>
+          <div style="max-width:110px"><label>Đến (%)</label><input id="scGainHi" type="number" step="0.5" value="10"></div>
+          <div style="flex:1"></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div style="flex:2"><label>Tên lần quét (tuỳ chọn, để dễ tìm lại)</label><input id="scLabel" placeholder="VD: 12 coin 1 năm - thử TP cao"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px">
+        <button class="btn green" onclick="runScan(false)">▶ Quét thật (Binance)</button>
+        <button class="btn ghost" onclick="runScan(true)">🧪 Quét Demo (offline)</button>
+        <span id="scStatus" class="muted small" style="align-self:center"></span>
+      </div>
+      <p class="small muted" style="margin-top:8px">⚠️ Quét thật tải dữ liệu nhiều coin nên có thể mất 1–3 phút. Cẩn thận overfitting: một tổ hợp đẹp lẻ loi thường là may rủi — hãy tìm vùng nhiều tổ hợp cùng dương & ổn định cao.</p>
+      <div id="scProgWrap" class="hidden" style="margin-top:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px">
+          <span id="scProgLabel">Đang chuẩn bị…</span><span id="scProgPct">0%</span>
+        </div>
+        <div style="background:var(--panel2);border:1px solid var(--line);border-radius:20px;height:12px;overflow:hidden">
+          <div id="scProgBar" style="height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#22c55e);transition:width .3s"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>💾 Kết quả đã lưu <button class="btn ghost" style="padding:4px 12px;font-size:12px;margin-left:8px" onclick="loadSavedList()">↻ Làm mới</button></h2>
+      <p class="small muted">Mỗi lần quét tự động lưu lại. Bấm một dòng để mở lại kết quả mà không cần chạy lại.</p>
+      <table><thead><tr><th>Thời gian</th><th>Tên</th><th>Coin</th><th>Tổ hợp</th><th>LN/th tốt nhất</th><th>Đạt MT</th><th></th></tr></thead>
+      <tbody id="savedBody"><tr><td colspan="7" class="muted">Chưa có. Chạy một lần quét để lưu.</td></tr></tbody></table>
+    </div>
+
+    <div id="scResults" class="card hidden">
+      <h2>Kết quả quét — <span id="scMeta" class="muted small"></span></h2>
+      <div style="margin-bottom:10px;display:flex;gap:8px">
+        <button class="btn ghost" style="padding:5px 12px;font-size:12px" onclick="exportScan('csv')">⬇ Xuất bảng (CSV)</button>
+        <button class="btn ghost" style="padding:5px 12px;font-size:12px" onclick="exportScan('json')">⬇ Xuất đầy đủ (JSON)</button>
+      </div>
+      <div style="max-height:460px;overflow:auto">
+      <table><thead><tr>
+        <th>#</th><th>TP%</th><th>SL%</th><th>Top-N</th><th>Rủi ro%</th><th>Lệnh</th>
+        <th>Thắng/Thua</th><th>Tổng lời/lỗ ($)</th>
+        <th>LN/th %</th><th>Tổng %</th><th>Win %</th><th>R:R</th><th>MaxDD %</th><th>Ổn định</th><th>Đạt MT</th><th>Score</th>
+      </tr></thead><tbody id="scanBody"></tbody><tfoot id="scanFoot"></tfoot></table></div>
+      <p class="small muted" style="margin-top:8px">"Ổn định" = tỷ lệ đoạn walk-forward có lãi (càng gần 1 càng tốt). "Đạt MT" = thoả cả 3 mục tiêu. Dòng trên cùng là tổ hợp điểm cao nhất. <b>💡 Bấm vào một dòng để xem chi tiết từng lệnh lời/lỗ.</b></p>
+    </div>
+
+    <div id="scTradeDetail" class="card hidden">
+      <h2>Chi tiết lệnh — <span id="tdMeta" class="muted small"></span>
+        <button class="btn ghost" style="padding:5px 12px;font-size:12px;margin-left:10px" onclick="exportTrades()">⬇ Xuất chi tiết + phân tích (JSON)</button></h2>
+      <div id="tdSummary" class="grid g4" style="margin-bottom:14px"></div>
+      <div id="tdInsights" style="margin-bottom:14px"></div>
+      <div id="tdWait" class="muted small">Đang dựng lại danh sách lệnh…</div>
+      <div style="max-height:420px;overflow:auto">
+      <table><thead><tr><th>#</th><th>Coin</th><th>Vào lúc</th><th>Ra lúc</th><th>Giá vào</th><th>Giá ra</th><th>Lý do</th><th>Lời/Lỗ ($)</th><th>R</th></tr></thead>
+      <tbody id="tdBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- BOT -->
+  <section id="tab-bot" class="hidden">
+    <div class="card">
+      <h2>Điều khiển bot paper trading</h2>
+      <p class="small muted">Bot chạy nền theo cấu hình hiện tại. Mặc định Testnet + mô phỏng (dry_run) nên KHÔNG đặt lệnh tiền thật.</p>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button id="btnStart" class="btn green" onclick="botAction('start')">▶ Bật bot</button>
+        <button id="btnStop" class="btn red" onclick="botAction('stop')">■ Dừng bot</button>
+        <span id="botMsg" class="muted small"></span>
+      </div>
+      <div id="botError" class="warn hidden" style="margin-top:12px"></div>
+      <div id="botConfig" style="margin-top:14px"></div>
+    </div>
+    <div class="card">
+      <h2>📊 Thống kê Live (từ nhật ký lệnh thật) <button class="btn ghost" style="padding:4px 12px;font-size:12px;margin-left:8px" onclick="loadLiveStats()">↻ Làm mới</button></h2>
+      <div id="liveEmpty" class="muted small">Chưa có lệnh nào đóng. Số liệu sẽ xuất hiện khi bot đóng lệnh đầu tiên.</div>
+      <div id="liveWrap" class="hidden">
+        <div class="grid g4" id="liveCards"></div>
+        <div class="card" style="background:var(--panel2);margin:12px 0"><h2 style="font-size:14px">Đường vốn (thực tế)</h2><canvas id="liveChart" height="80"></canvas></div>
+        <div id="liveInsights" style="margin-bottom:12px"></div>
+        <div style="max-height:300px;overflow:auto">
+          <table><thead><tr><th>Coin</th><th>Vào</th><th>Ra</th><th>Lý do</th><th>Tăng vào</th><th>Giữ</th><th>PnL</th><th>R</th></tr></thead>
+          <tbody id="liveTradeBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Nhật ký hoạt động (log)</h2>
+      <pre id="logBox" class="log">Đang tải log…</pre>
+    </div>
+  </section>
+
+  <!-- CONFIG -->
+  <section id="tab-config" class="hidden">
+    <div class="card">
+      <h2>Cấu hình (.env)</h2>
+      <p class="small muted">Thay đổi sẽ lưu vào file <code>.env</code>. Trường bí mật hiển thị <code>********</code>; để trống nghĩa là giữ nguyên giá trị cũ.</p>
+      <div id="configFields" class="grid g2"></div>
+      <div style="margin-top:16px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px">
+        <div class="small muted" style="margin-bottom:10px"><b>⚙️ Cải tiến chiến lược (áp dụng cho BOT):</b></div>
+        <div id="configImprove"></div>
+      </div>
+      <div style="margin-top:16px"><button class="btn" onclick="saveConfig()">💾 Lưu cấu hình</button>
+        <span id="cfgMsg" class="muted small" style="margin-left:10px"></span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmtPct = v => (v==null?'—':(v*100).toFixed(2)+'%');
+const fmtMoney = v => (v==null?'—':'$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:2}));
+
+// Tabs
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  ['overview','signals','backtest','scan','bot','config'].forEach(t=>$('tab-'+t).classList.add('hidden'));
+  $('tab-'+b.dataset.tab).classList.remove('hidden');
+  if(b.dataset.tab==='config') loadConfig();
+  if(b.dataset.tab==='bot'){ refreshLogs(); loadLiveStats(); }
+  if(b.dataset.tab==='scan') loadSavedList();
+});
+
+// Status polling
+async function refreshStatus(){
+  try{
+    const s = await (await fetch('/api/status')).json();
+    const badge = $('botBadge');
+    badge.className = 'badge ' + (s.running?'on':'off');
+    badge.textContent = s.running ? '● Bot: đang chạy' : '● Bot: đang tắt';
+    $('ovStatus').textContent = s.running?'Đang chạy':'Đang tắt';
+    $('ovStatus').className = 'value '+(s.running?'g':'');
+    $('ovMode').textContent = s.mode + (s.dry_run?' (mô phỏng)':' (thật)');
+    $('ovPeak').textContent = fmtMoney(s.peak_equity);
+    const open = s.open_positions||{};
+    const keys = Object.keys(open);
+    $('ovOpen').textContent = keys.length;
+    const body = $('ovPosBody');
+    if(keys.length===0){ body.innerHTML='<tr><td colspan="6" class="muted">Chưa có vị thế.</td></tr>'; }
+    else{ body.innerHTML = keys.map(k=>{const p=open[k];
+      return `<tr><td>${k}</td><td>${p.entry?.toFixed?.(6)??p.entry}</td><td>${p.tp?.toFixed?.(6)??''}</td>
+      <td>${p.sl?.toFixed?.(6)??''}</td><td>${p.qty}</td><td class="small">${(p.entry_time||'').slice(0,19)}</td></tr>`}).join(''); }
+    $('btnStart').disabled = s.running; $('btnStop').disabled = !s.running;
+    if(s.error){ $('botError').classList.remove('hidden'); $('botError').textContent='Lỗi bot: '+String(s.error).split(String.fromCharCode(10))[0]; }
+    else $('botError').classList.add('hidden');
+    renderBotConfig(s.config, s.config_is_live);
+  }catch(e){}
+}
+function renderBotConfig(c, isLive){
+  if(!c){ $('botConfig').innerHTML=''; return; }
+  const chip=(on,txt)=>`<span class="pill ${on?'TP':'TimeStop'}" style="margin:2px 4px 2px 0">${on?'✓':'✕'} ${txt}</span>`;
+  const im=c.improvements||{};
+  const pct=v=>(v*100).toFixed(v*100%1?1:0)+'%';
+  $('botConfig').innerHTML=`
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px">
+      <div class="small muted" style="margin-bottom:8px"><b>⚙️ Cấu hình bot ${isLive?'(đang chạy)':'(sẽ dùng khi bật)'}:</b></div>
+      <div class="small" style="margin-bottom:8px">
+        Chế độ: <b>${c.mode}</b> ${c.dry_run?'<span class="pill Reversal">MÔ PHỎNG (không gửi lệnh)</span>':'<span class="pill SL">ĐẶT LỆNH THẬT</span>'}
+        &nbsp;·&nbsp; Vốn tối đa: <b>${c.max_capital>0?('$'+c.max_capital):'toàn ví'}</b>
+        &nbsp;·&nbsp; Top gainer: <b>${c.use_gainers}</b> &nbsp;·&nbsp; Tối đa <b>${c.max_open}</b> lệnh
+        &nbsp;·&nbsp; Rủi ro <b>${pct(c.risk)}</b>/lệnh &nbsp;·&nbsp; SL <b>${pct(c.sl)}</b>
+        &nbsp;·&nbsp; Ngưng lỗ ngày <b>${pct(c.daily_stop)}</b> &nbsp;·&nbsp; Quét mỗi <b>${c.loop}s</b>
+      </div>
+      <div>${chip(im.trend,`Lọc xu hướng (EMA ${im.trend_ema})`)}${chip(im.trailing,`Trailing ${pct(im.trail_pct)}`)}${chip(im.stall,`Cắt chết yểu ${im.stall_bars}h`)}${chip(im.gain,`Né vùng ${pct(im.gain_lo)}–${pct(im.gain_hi)}`)}</div>
+    </div>`;
+}
+setInterval(refreshStatus, 3000); refreshStatus();
+
+// Backtest
+let chart=null;
+async function runBacktest(demo){
+  $('btStatus').textContent = demo?'Đang chạy demo…':'Đang tải dữ liệu Binance & chạy… (có thể mất 10–60s)';
+  const payload = {demo, symbols:$('btSymbols').value, days:+$('btDays').value,
+    capital:+$('btCapital').value, risk:+$('btRisk').value, tp:+$('btTp').value,
+    sl:+$('btSl').value, max_open:+$('btMaxOpen').value};
+  try{
+    const r = await (await fetch('/api/backtest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})).json();
+    if(!r.ok){ $('btStatus').textContent = '✗ '+(r.error||'lỗi')+' — '+(r.hint||''); return; }
+    $('btStatus').textContent = r.demo?'✓ Xong (DEMO — dữ liệu giả lập)':'✓ Xong (dữ liệu Binance thật)';
+    renderResults(r);
+  }catch(e){ $('btStatus').textContent='✗ Lỗi: '+e; }
+}
+
+function renderResults(r){
+  $('btResults').classList.remove('hidden');
+  const m=r.metrics, t=r.targets;
+  const mo=m.monthly_return, wr=m.win_rate, rr=m.realized_rr;
+  const okMo = mo!=null && mo*100>=t.monthly[0] && mo*100<=t.monthly[1];
+  const okWr = wr!=null && wr*100>=t.win_rate[0] && wr*100<=t.win_rate[1];
+  const okRr = rr!=null && rr>=t.rr;
+  $('mMonthly').innerHTML = `<span class="${okMo?'g':'r'}">${fmtPct(mo)}</span>`;
+  $('mWin').innerHTML = `<span class="${okWr?'g':'r'}">${fmtPct(wr)}</span>`;
+  $('mRr').innerHTML = `<span class="${okRr?'g':'r'}">${rr==null?'—':rr.toFixed(2)}</span>`;
+  $('mDd').innerHTML = `<span class="r">${fmtPct(m.max_drawdown)}</span>`;
+  const all = okMo&&okWr&&okRr;
+  const v=$('verdict'); v.className='verdict '+(all?'ok':'no');
+  v.innerHTML = (all?'✅ ĐẠT TOÀN BỘ MỤC TIÊU':'⚠️ CHƯA ĐẠT ĐỦ MỤC TIÊU')
+    + ` — mục tiêu: LN/th 5–15%, Win 45–55%, R:R ≥1.5. `
+    + `(Tổng LN ${fmtPct(m.total_return)}, ${m.num_trades} lệnh, ${m.days} ngày)`
+    + (r.demo?' • Lưu ý: DEMO dữ liệu giả lập, không phản ánh thực tế.':'');
+
+  // chart
+  const labels=r.curve.map(p=>p.t), data=r.curve.map(p=>p.v);
+  if(chart) chart.destroy();
+  chart=new Chart($('equityChart'),{type:'line',
+    data:{labels,datasets:[{label:'Vốn ($)',data,borderColor:'#3b82f6',
+      backgroundColor:'rgba(59,130,246,.12)',fill:true,pointRadius:0,borderWidth:2,tension:.15}]},
+    options:{plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#8a97b5',maxTicksLimit:8},grid:{color:'#2a3450'}},
+      y:{ticks:{color:'#8a97b5'},grid:{color:'#2a3450'}}}}});
+
+  $('monthlyBody').innerHTML = (r.monthly||[]).map(x=>{
+    const pos=x.pnl>=0; return `<tr><td>${x.month}</td><td class="${pos?'target-ok':'target-no'}">${x.pnl.toFixed(2)}</td><td>${x.trades}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" class="muted">Chưa có.</td></tr>';
+
+  $('walkBody').innerHTML = (r.walk||[]).map(x=>{
+    const pos=(x['monthly_%']||0)>=0; return `<tr><td class="small">${x.segment}</td>
+      <td class="${pos?'target-ok':'target-no'}">${x['monthly_%']}</td><td>${x['win_rate_%']}</td><td>${x.trades}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" class="muted">Không đủ dữ liệu.</td></tr>';
+
+  $('tradeCount').textContent = (r.trades||[]).length;
+  $('tradeBody').innerHTML = (r.trades||[]).map(x=>{
+    const pos=x.pnl>=0; return `<tr><td>${x.symbol}</td><td class="small">${x.entry_time}</td>
+    <td class="small">${x.exit_time}</td><td>${x.entry}</td><td>${x.exit}</td>
+    <td><span class="pill ${x.reason}">${x.reason}</span></td>
+    <td class="${pos?'target-ok':'target-no'}">${x.pnl.toFixed(2)}</td>
+    <td class="${pos?'target-ok':'target-no'}">${x.R}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="muted">Không có lệnh.</td></tr>';
+}
+
+// Live signals
+async function loadSignals(){
+  $('sgStatus').textContent='Đang quét & phân tích… (5–20s)';
+  const n=+$('sgN').value||10, mv=+$('sgMinVol').value||0;
+  try{
+    const r=await(await fetch(`/api/signals?n=${n}&min_vol=${mv}`)).json();
+    if(!r.ok){ $('sgStatus').textContent='✗ '+(r.error||'lỗi')+' — '+(r.hint||''); return; }
+    $('sgStatus').textContent=`✓ ${r.count} coin • ${new Date().toLocaleTimeString()}`;
+    const f=v=>v==null?'—':(+v).toLocaleString(undefined,{maximumFractionDigits:6});
+    const vol=v=>v==null?'—':'$'+(v/1e6).toFixed(1)+'M';
+    $('sigBody').innerHTML = r.rows.map((x,i)=>{
+      const d1 = x.dk==null?'<span class="muted">thiếu dữ liệu</span>'
+        : `<span class="${x.d1_ok?'target-ok':'target-no'}">${x.d1_ok?'Tăng':'Chưa'}</span> <span class="muted small">K${x.dk}/D${x.dd}</span>`;
+      const h1 = x.k==null?'—':`<span class="muted small">K${x.k}/D${x.d}</span>`;
+      const sig = x.signal?'<span class="pill TP">✅ VÀO</span>':'<span class="muted">—</span>';
+      return `<tr style="${x.signal?'background:rgba(34,197,94,.10)':''}">
+        <td>${i+1}</td><td><b>${x.symbol}</b></td>
+        <td class="target-ok">+${x.change}%</td><td class="small">${vol(x.volume)}</td>
+        <td>${d1}</td><td>${h1}</td><td>${sig}</td>
+        <td>${x.signal?f(x.entry):'—'}</td><td>${x.signal?f(x.tp):'—'}</td><td>${x.signal?f(x.sl):'—'}</td>
+        <td class="small" style="color:var(--amber)">${x.warn||''}</td></tr>`;
+    }).join('') || '<tr><td colspan="11" class="muted">Không có coin nào.</td></tr>';
+  }catch(e){ $('sgStatus').textContent='✗ Lỗi: '+e; }
+}
+
+// Scan (chạy nền + tiến độ trực tiếp)
+let scanTimer=null;
+function toggleAuto(){
+  const on=$('scAuto').checked;
+  $('scAutoN').style.display=on?'block':'none';
+  $('scUniverse').disabled=on;
+}
+toggleAuto();
+async function runScan(demo){
+  const opts={use_trend:$('scTrend').checked, trend_ema:+$('scTrendEma').value,
+    use_trailing:$('scTrail').checked, trail_pct:+$('scTrailPct').value,
+    use_market:$('scMarket').checked, market_ema:+$('scMarketEma').value,
+    use_stall:$('scStall').checked, stall_bars:+$('scStallBars').value,
+    use_gainfilter:$('scGain').checked, gain_lo:+$('scGainLo').value, gain_hi:+$('scGainHi').value};
+  const payload={demo, label:$('scLabel').value, universe:$('scUniverse').value, days:+$('scDays').value, capital:+$('scCapital').value,
+    auto_universe:$('scAuto').checked, auto_n:+$('scAutoNVal').value,
+    tp_list:$('scTp').value, sl_list:$('scSl').value, topn_list:$('scTopn').value,
+    risk_list:$('scRisk').value, min_trades:+$('scMinTrades').value, ...opts};
+  scanCtx={demo, universe:[], days:+$('scDays').value, capital:+$('scCapital').value, opts};
+  $('scTradeDetail').classList.add('hidden');
+  let r;
+  try{
+    const resp=await fetch('/api/scan/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!resp.ok){ $('scStatus').textContent='✗ Server chưa có tính năng mới (HTTP '+resp.status+'). Hãy Ctrl+C và chạy lại: python webapp.py'; return; }
+    r=await resp.json();
+  }catch(e){ $('scStatus').textContent='✗ Không gọi được server. Bạn đã khởi động lại python webapp.py chưa? ('+e+')'; return; }
+  if(r.already_running){ $('scStatus').textContent='Đang có phiên quét chạy — chờ xong đã.'; return; }
+  $('scStatus').textContent='Đã bắt đầu…';
+  $('scProgWrap').classList.remove('hidden');
+  $('scResults').classList.remove('hidden');
+  if(scanTimer) clearInterval(scanTimer);
+  scanTimer=setInterval(pollScan, 1000);
+  pollScan();
+}
+function setProg(pct,label){ $('scProgBar').style.width=pct+'%'; $('scProgPct').textContent=Math.round(pct)+'%'; $('scProgLabel').textContent=label; }
+async function pollScan(){
+  try{
+    const p=await(await fetch('/api/scan/progress')).json();
+    if(p.phase==='fetch'){
+      const frac=p.fetch_total? p.fetch_done/p.fetch_total : 0;
+      const pct=5+frac*35;   // luôn ≥5%, không tụt về 0 khi mới bắt đầu tải
+      const cnt=p.fetch_total? ` (${p.fetch_done}/${p.fetch_total} coin)` : '';
+      setProg(pct, (p.status||'Đang tải dữ liệu…')+cnt);
+    }else if(p.phase==='scan'){
+      const pct=40 + (p.total? p.done/p.total*60 : 0);
+      setProg(pct, p.status||'Đang quét…');
+    }else if(p.phase==='done'){
+      setProg(100, p.status||'Hoàn tất.'); clearInterval(scanTimer); scanTimer=null;
+      $('scStatus').textContent=(p.demo?'✓ Xong (DEMO)':'✓ Xong (thật)')+(p.saved_id?' • đã lưu':'');
+      loadSavedList();
+    }else if(p.phase==='error'){
+      clearInterval(scanTimer); scanTimer=null;
+      $('scStatus').textContent='✗ Lỗi: '+(p.error||''); setProg(0,'Lỗi');
+      return;
+    }
+    if(p.universe&&p.universe.length){
+      $('scMeta').textContent=`${p.universe.length} coin · ${p.days} ngày`+(p.demo?' • DEMO':'');
+      // Đồng bộ ngữ cảnh AUTHORITATIVE từ server để chi tiết lệnh khớp bảng
+      scanCtx={demo:p.demo, universe:p.universe, days:p.days, capital:p.capital, opts:p.opts||scanCtx.opts};
+    }
+    renderScanRows(p.rows||[]);
+  }catch(e){}
+}
+let scanCtx={demo:false, universe:[], days:180, capital:1000};
+let lastScanRows=[], lastTradeData=null;
+
+function downloadFile(name, content, type){
+  const blob=new Blob([content],{type:type+';charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function tstamp(){ return new Date().toISOString().slice(0,16).replace(/[:T]/g,'-'); }
+function exportScan(fmt){
+  if(!lastScanRows.length){ alert('Chưa có kết quả để xuất.'); return; }
+  const cols=['tp_%','sl_%','top_n','risk_%','trades','n_win','n_loss','gross_win','gross_loss','monthly_%','total_%','win_%','rr','maxdd_%','stability','meets_target','score'];
+  if(fmt==='csv'){
+    const head=['#',...cols].join(',');
+    const lines=lastScanRows.map((r,i)=>[i+1,...cols.map(c=>r[c])].join(','));
+    downloadFile(`scan_${tstamp()}.csv`, [head,...lines].join('\n'), 'text/csv');
+  }else{
+    const payload={meta:{universe:scanCtx.universe, days:scanCtx.days, capital:scanCtx.capital, opts:scanCtx.opts, demo:scanCtx.demo, exported:new Date().toISOString()}, rows:lastScanRows};
+    downloadFile(`scan_${tstamp()}.json`, JSON.stringify(payload,null,2), 'application/json');
+  }
+}
+function exportTrades(){
+  if(!lastTradeData){ alert('Chưa mở chi tiết lệnh nào.'); return; }
+  const payload={meta:{universe:scanCtx.universe, days:scanCtx.days, capital:scanCtx.capital, opts:scanCtx.opts, demo:scanCtx.demo, combo:$('tdMeta').textContent, exported:new Date().toISOString()}, ...lastTradeData};
+  downloadFile(`trades_${tstamp()}.json`, JSON.stringify(payload,null,2), 'application/json');
+}
+
+function renderScanRows(rows){
+  lastScanRows=rows||[];
+  $('scanBody').innerHTML = rows.map((x,idx)=>{
+    const pos=x['monthly_%']>=0, best=idx===0;
+    const wl = (x.n_win==null)?'—':`<span class="target-ok">${x.n_win}</span>/<span class="target-no">${x.n_loss}</span>`;
+    const gwl = (x.gross_win==null)?'—':`<span class="target-ok">+${x.gross_win}</span> / <span class="target-no">-${Math.abs(x.gross_loss)}</span>`;
+    return `<tr style="cursor:pointer;${best?'background:rgba(59,130,246,.12)':''}" onclick='openTrades(${JSON.stringify(x)})'>
+      <td>${idx+1}</td><td>${x['tp_%']}</td><td>${x['sl_%']}</td><td>${x.top_n}</td><td>${x['risk_%']}</td>
+      <td>${x.trades}</td><td>${wl}</td><td class="small">${gwl}</td>
+      <td class="${pos?'target-ok':'target-no'}">${x['monthly_%']}</td>
+      <td class="${x['total_%']>=0?'target-ok':'target-no'}">${x['total_%']}</td>
+      <td>${x['win_%']}</td><td>${x.rr??'—'}</td><td class="target-no">${x['maxdd_%']}</td>
+      <td>${x.stability}</td><td>${x.meets_target?'✅':'—'}</td><td><b>${x.score}</b></td></tr>`;
+  }).join('') || '<tr><td colspan="16" class="muted">Đang chờ kết quả đầu tiên…</td></tr>';
+  renderScanFoot(rows);
+}
+function renderScanFoot(rows){
+  const foot=$('scanFoot');
+  if(!rows||!rows.length){ foot.innerHTML=''; return; }
+  const n=rows.length;
+  const avg=(k)=>{ const v=rows.map(r=>r[k]).filter(x=>x!=null&&!isNaN(x)); return v.length?v.reduce((a,b)=>a+b,0)/v.length:null; };
+  const sum=(k)=>rows.reduce((a,r)=>a+(r[k]||0),0);
+  const f1=v=>v==null?'—':v.toFixed(1), f2=v=>v==null?'—':v.toFixed(2);
+  const profitable=rows.filter(r=>r['total_%']>0).length;
+  const meets=rows.filter(r=>r.meets_target).length;
+  const bestScore=Math.max(...rows.map(r=>r.score));
+  const worstDD=Math.min(...rows.map(r=>r['maxdd_%']));
+  foot.innerHTML=`<tr style="border-top:2px solid var(--accent);font-weight:600;background:var(--panel2)">
+    <td>TỔNG</td><td>—</td><td>—</td><td>—</td><td>—</td>
+    <td title="trung bình">TB ${f1(avg('trades'))}</td>
+    <td>TB ${f1(avg('n_win'))}/${f1(avg('n_loss'))}</td>
+    <td class="small"><span class="target-ok">+${f1(avg('gross_win'))}</span>/<span class="target-no">${f1(avg('gross_loss'))}</span></td>
+    <td class="${avg('monthly_%')>=0?'target-ok':'target-no'}">TB ${f2(avg('monthly_%'))}</td>
+    <td class="${avg('total_%')>=0?'target-ok':'target-no'}">TB ${f2(avg('total_%'))}</td>
+    <td>TB ${f1(avg('win_%'))}</td><td>TB ${f2(avg('rr'))}</td>
+    <td class="target-no" title="xấu nhất">${f2(worstDD)}</td>
+    <td>TB ${f2(avg('stability'))}</td>
+    <td>${meets}/${n}</td><td>max ${f2(bestScore)}</td></tr>
+    <tr style="background:var(--panel2)"><td colspan="16" class="small muted" style="padding-top:2px">
+    ${n} tổ hợp • Có lãi (Tổng% > 0): <b class="${profitable>0?'target-ok':'target-no'}">${profitable}/${n}</b>
+    • Đạt cả 3 mục tiêu: <b>${meets}/${n}</b> • DD xấu nhất: <b class="target-no">${f2(worstDD)}%</b>
+    ${profitable<=1?' • ⚠️ Rất ít tổ hợp có lãi — coi chừng may rủi/overfitting':''}</td></tr>`;
+}
+async function openTrades(row){
+  $('scTradeDetail').classList.remove('hidden');
+  $('tdWait').style.display='block'; $('tdBody').innerHTML=''; $('tdSummary').innerHTML='';
+  const o=scanCtx.opts||{}; const flags=[o.use_trend&&'Trend',o.use_trailing&&'Trail',o.use_market&&'Market',o.use_stall&&'Stall',o.use_gainfilter&&'GainF'].filter(Boolean).join('+')||'cơ bản';
+  $('tdMeta').textContent=`TP ${row['tp_%']}% · SL ${row['sl_%']}% · Top-${row.top_n} · ${scanCtx.days} ngày · ${flags}`+(scanCtx.demo?' · DEMO':'');
+  $('scTradeDetail').scrollIntoView({behavior:'smooth'});
+  const payload={demo:scanCtx.demo, universe:scanCtx.universe, days:scanCtx.days, capital:scanCtx.capital,
+    tp:row['tp_%'], sl:row['sl_%'], top_n:row.top_n, risk:row['risk_%'], ...(scanCtx.opts||{})};
+  try{
+    const r=await(await fetch('/api/scan/trades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})).json();
+    $('tdWait').style.display='none';
+    if(!r.ok){ $('tdBody').innerHTML=`<tr><td colspan="9" class="muted">✗ ${r.error||'lỗi'}</td></tr>`; return; }
+    lastTradeData=r;
+    const s=r.summary;
+    const money=v=>(v>=0?'+':'')+'$'+Math.abs(v).toLocaleString(undefined,{maximumFractionDigits:2});
+    $('tdSummary').innerHTML=`
+      <div class="stat"><div class="label">Tổng số lệnh</div><div class="value">${s.n}</div></div>
+      <div class="stat"><div class="label">Thắng / Thua</div><div class="value"><span class="target-ok">${s.n_win}</span> / <span class="target-no">${s.n_loss}</span></div></div>
+      <div class="stat"><div class="label">Tổng lời / Tổng lỗ</div><div class="value" style="font-size:16px"><span class="target-ok">${money(s.gross_win)}</span> / <span class="target-no">${money(s.gross_loss)}</span></div></div>
+      <div class="stat"><div class="label">Ròng (vốn ${s.capital}$ → ${s.final}$)</div><div class="value ${s.net>=0?'g':'r'}">${money(s.net)}</div></div>`;
+    renderInsights(r.analysis);
+    $('tdBody').innerHTML=(r.trades||[]).map((t,i)=>{
+      const pos=t.pnl>=0;
+      return `<tr><td>${i+1}</td><td><b>${t.symbol}</b></td><td class="small">${t.entry_time}</td>
+        <td class="small">${t.exit_time}</td><td>${t.entry}</td><td>${t.exit}</td>
+        <td><span class="pill ${t.reason}">${t.reason}</span></td>
+        <td class="${pos?'target-ok':'target-no'}">${money(t.pnl)}</td>
+        <td class="${pos?'target-ok':'target-no'}">${t.R}</td></tr>`;
+    }).join('') || '<tr><td colspan="9" class="muted">Bộ tham số này không có lệnh nào.</td></tr>';
+  }catch(e){ $('tdWait').style.display='none'; $('tdBody').innerHTML=`<tr><td colspan="9" class="muted">✗ Lỗi: ${e}</td></tr>`; }
+}
+
+// Saved scans
+async function loadSavedList(){
+  try{
+    const r=await(await fetch('/api/scans')).json();
+    const items=r.items||[];
+    $('savedBody').innerHTML = items.length ? items.map(x=>`
+      <tr style="cursor:pointer" onclick="openSaved('${x.id}')">
+        <td class="small">${x.created||''}</td>
+        <td>${x.label||x.id}${x.demo?' <span class="muted small">(demo)</span>':''}</td>
+        <td>${x.n_universe}</td><td>${x.n_combos}</td>
+        <td class="${(x.best_monthly||0)>=0?'target-ok':'target-no'}">${x.best_monthly==null?'—':x.best_monthly+'%'}</td>
+        <td>${x.meets_any?'✅':'—'}</td>
+        <td><button class="btn ghost" style="padding:3px 10px;font-size:12px" onclick="event.stopPropagation();delSaved('${x.id}')">Xoá</button></td>
+      </tr>`).join('') : '<tr><td colspan="7" class="muted">Chưa có. Chạy một lần quét để lưu.</td></tr>';
+  }catch(e){}
+}
+async function openSaved(id){
+  const d=await(await fetch('/api/scans/'+id)).json();
+  if(!d.ok) return;
+  $('scResults').classList.remove('hidden');
+  $('scProgWrap').classList.add('hidden');
+  $('scMeta').textContent=`[Đã lưu ${d.created}] ${d.universe.length} coin: ${d.universe.join(', ')}`+(d.demo?' • DEMO':'');
+  $('scStatus').textContent='Đang xem kết quả đã lưu: '+(d.label||id);
+  scanCtx={demo:d.demo, universe:d.universe, days:+d.days||180, capital:+d.capital||1000, opts:d.opts||{}};
+  $('scTradeDetail').classList.add('hidden');
+  renderScanRows(d.rows||[]);
+  $('scResults').scrollIntoView({behavior:'smooth'});
+}
+async function delSaved(id){
+  await fetch('/api/scans/'+id+'/delete',{method:'POST'});
+  loadSavedList();
+}
+
+function renderInsights(a){
+  const box=$('tdInsights'); if(!a){ box.innerHTML=''; return; }
+  const w=a.win, l=a.loss;
+  const bucketTable=(rows,head)=>{
+    if(!rows||!rows.length) return '';
+    const best=rows.reduce((m,x)=>x.win_rate>m.win_rate?x:m,rows[0]);
+    return `<div class="card" style="background:var(--panel2);margin:0">
+      <div class="small muted" style="margin-bottom:6px"><b>${head}</b></div>
+      <table><thead><tr><th>Nhóm</th><th>Lệnh</th><th>Win%</th><th>R TB</th><th>PnL($)</th></tr></thead><tbody>
+      ${rows.map(x=>`<tr${x===best?' style="background:rgba(34,197,94,.12)"':''}>
+        <td>${x.range}</td><td>${x.n}</td>
+        <td class="${x.win_rate>=45?'target-ok':'target-no'}">${x.win_rate}%</td>
+        <td class="${x.avg_R>=0?'target-ok':'target-no'}">${x.avg_R}</td>
+        <td class="${x.pnl>=0?'target-ok':'target-no'}">${x.pnl}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  };
+  box.innerHTML=`
+    <div class="card" style="background:rgba(59,130,246,.06);margin-bottom:12px">
+      <div class="small muted" style="margin-bottom:8px"><b>🔍 Học từ lệnh đã vào — Thắng vs Thua (đặc điểm lúc vào lệnh):</b></div>
+      <div class="grid g2">
+        <div class="small">Lệnh <b class="target-ok">THẮNG</b> (${w.n}): coin đã tăng TB <b>${w.avg_ret24!=null?(w.avg_ret24*100).toFixed(1)+'%':'—'}</b> · quá bán sâu TB <b>${w.avg_osdepth??'—'}</b> · giữ TB <b>${w.avg_hold??'—'}h</b></div>
+        <div class="small">Lệnh <b class="target-no">THUA</b> (${l.n}): coin đã tăng TB <b>${l.avg_ret24!=null?(l.avg_ret24*100).toFixed(1)+'%':'—'}</b> · quá bán sâu TB <b>${l.avg_osdepth??'—'}</b> · giữ TB <b>${l.avg_hold??'—'}h</b></div>
+      </div>
+    </div>
+    <div class="grid g2">${bucketTable(a.by_ret,'Tỷ lệ thắng theo mức coin đã tăng 24h (chọn coin nào để vào)')}
+    ${bucketTable(a.by_hold,'Tỷ lệ thắng theo thời gian giữ (nên ra nhanh hay giữ lâu)')}</div>`;
+}
+
+// Live stats
+let liveChart=null;
+async function loadLiveStats(){
+  try{
+    const s=await(await fetch('/api/live/stats')).json();
+    if(!s.ok){ return; }
+    if(s.empty||!s.n){ $('liveEmpty').classList.remove('hidden'); $('liveWrap').classList.add('hidden'); return; }
+    $('liveEmpty').classList.add('hidden'); $('liveWrap').classList.remove('hidden');
+    const pct=v=>v==null?'—':v+'%'; const money=v=>(v>=0?'+':'')+'$'+Math.abs(v).toFixed(2);
+    $('liveCards').innerHTML=`
+      <div class="stat"><div class="label">Số lệnh</div><div class="value">${s.n}</div></div>
+      <div class="stat"><div class="label">Thắng/Thua</div><div class="value"><span class="target-ok">${s.n_win}</span>/<span class="target-no">${s.n_loss}</span> <span class="muted" style="font-size:13px">(${s.win_rate}%)</span></div></div>
+      <div class="stat"><div class="label">Tổng lời/lỗ</div><div class="value" style="font-size:16px"><span class="target-ok">${money(s.gross_win)}</span> / <span class="target-no">${money(s.gross_loss)}</span></div></div>
+      <div class="stat"><div class="label">Ròng (tổng ${pct(s.total_return)})</div><div class="value ${s.net>=0?'g':'r'}">${money(s.net)}</div></div>
+      <div class="stat"><div class="label">R:R thực tế</div><div class="value">${s.realized_rr??'—'}</div></div>
+      <div class="stat"><div class="label">Profit factor</div><div class="value">${s.profit_factor??'—'}</div></div>
+      <div class="stat"><div class="label">Kỳ vọng/lệnh</div><div class="value">${s.expectancy_r} R</div></div>
+      <div class="stat"><div class="label">Drawdown tối đa</div><div class="value r">${pct(s.max_drawdown)}</div></div>`;
+    // chart
+    const labels=s.curve.map(p=>p.t.slice(5,16)), data=s.curve.map(p=>p.v);
+    if(liveChart) liveChart.destroy();
+    liveChart=new Chart($('liveChart'),{type:'line',data:{labels,datasets:[{label:'Vốn',data,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.12)',fill:true,pointRadius:0,borderWidth:2,tension:.15}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a97b5',maxTicksLimit:8},grid:{color:'#2a3450'}},y:{ticks:{color:'#8a97b5'},grid:{color:'#2a3450'}}}}});
+    renderInsights(s.analysis);
+    $('liveTradeBody').innerHTML=s.trades.slice().reverse().map(t=>{const pos=t.pnl>=0;
+      return `<tr><td><b>${t.symbol}</b></td><td class="small">${(t.entry_time||'').slice(5,16)}</td>
+      <td class="small">${(t.exit_time||'').slice(5,16)}</td><td><span class="pill ${t.reason}">${t.reason}</span></td>
+      <td>${t.ret24==null?'—':t.ret24+'%'}</td><td>${t.hold_bars}h</td>
+      <td class="${pos?'target-ok':'target-no'}">${money(t.pnl)}</td><td class="${pos?'target-ok':'target-no'}">${t.R}</td></tr>`;
+    }).join('');
+  }catch(e){}
+}
+
+// Bot
+async function botAction(a){
+  $('botMsg').textContent = a==='start'?'Đang khởi động…':'Đang dừng…';
+  const r = await (await fetch('/api/bot/'+a,{method:'POST'})).json();
+  $('botMsg').textContent = a==='start'?(r.running?'Đã bật.':'Không bật được.'):'Đã gửi lệnh dừng.';
+  refreshStatus(); setTimeout(refreshLogs,800);
+}
+async function refreshLogs(){
+  try{ const r=await(await fetch('/api/logs')).json();
+    $('logBox').textContent = r.lines.length? r.lines.join(String.fromCharCode(10)) : '(chưa có log)';
+    $('logBox').scrollTop = $('logBox').scrollHeight;
+  }catch(e){}
+}
+setInterval(()=>{ if(!$('tab-bot').classList.contains('hidden')){ refreshLogs(); loadLiveStats(); } }, 6000);
+
+// Config
+const LABELS={TRADE_MODE:'Chế độ (testnet/live)',DRY_RUN:'Mô phỏng — không gửi lệnh thật',SYMBOLS:'Danh sách coin',
+  USE_GAINERS:'Top N gainer (khớp backtest=10)',INITIAL_CAPITAL:'Vốn ban đầu',
+  MAX_CAPITAL:'Vốn TỐI ĐA bot dùng ($, 0=toàn ví)',RISK_PER_TRADE:'Rủi ro/lệnh',
+  TP_PCT:'Take Profit',MAX_SL_PCT:'Stop Loss tối đa',MAX_OPEN_TRADES:'Số lệnh mở tối đa',
+  DAILY_STOP:'Ngưng lỗ/ngày',HARD_STOP_ON_EXCHANGE:'Stop-loss phía sàn',MAX_TOTAL_DRAWDOWN:'Trần sụt giảm tổng',
+  LOOP_SECONDS:'Chu kỳ quét (giây)',BINANCE_API_KEY:'API Key',BINANCE_API_SECRET:'API Secret',
+  TELEGRAM_TOKEN:'Telegram Token',TELEGRAM_CHAT_ID:'Telegram Chat ID',
+  USE_TREND_FILTER:'✓ Lọc xu hướng (giá > EMA)',TREND_EMA:'Trend EMA (nến ngày)',
+  USE_TRAILING:'✓ Trailing stop (để lời chạy)',TRAIL_PCT:'Trailing (%, vd 0.03)',
+  USE_STALL_EXIT:'✓ Cắt lệnh chết yểu',STALL_BARS:'Số giờ chờ (stall)',
+  USE_GAIN_FILTER:'✓ Né vùng tăng chết',GAIN_AVOID_LO:'Vùng chết từ (vd 0.05)',GAIN_AVOID_HI:'Vùng chết đến (vd 0.10)'};
+const BOOL_KEYS=['DRY_RUN','HARD_STOP_ON_EXCHANGE','USE_TREND_FILTER','USE_TRAILING','USE_STALL_EXIT','USE_GAIN_FILTER'];
+const IMPROVE_KEYS=['USE_TREND_FILTER','TREND_EMA','USE_TRAILING','TRAIL_PCT','USE_STALL_EXIT','STALL_BARS','USE_GAIN_FILTER','GAIN_AVOID_LO','GAIN_AVOID_HI'];
+const PCT_KEYS=['TRAIL_PCT','GAIN_AVOID_LO','GAIN_AVOID_HI'];  // nhập theo %, lưu ra .env dạng thập phân
+async function loadConfig(){
+  const c = await (await fetch('/api/config')).json();
+  // 1) Các trường chung (không thuộc nhóm cải tiến)
+  $('configFields').innerHTML = Object.keys(c).filter(k=>!IMPROVE_KEYS.includes(k)).map(k=>{
+    if(BOOL_KEYS.includes(k)){
+      const on=String(c[k]).toLowerCase()==='true';
+      return `<div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px">
+        <label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin:0">
+        <input type="checkbox" id="cfg_${k}" style="width:auto" ${on?'checked':''}> ${LABELS[k]||k}</label></div>`;
+    }
+    return `<div><label>${LABELS[k]||k} <span class="muted">(${k})</span></label>
+      <input id="cfg_${k}" value="${c[k]??''}"></div>`;
+  }).join('');
+  // 2) Nhóm cải tiến: checkbox + ô số (dạng %, có nút spinner) đi cạnh nhau
+  const num=(key,label)=>{
+    const isPct=PCT_KEYS.includes(key);
+    let v=c[key]??''; if(isPct && v!=='') v=+(parseFloat(v)*100).toFixed(2);   // 0.05 -> 5
+    return `<div style="max-width:150px"><label>${label}</label>
+      <input type="number" step="${isPct?'0.5':'1'}" id="cfg_${key}" value="${v}"></div>`;
+  };
+  const row=(chk,label,nums)=>{const on=String(c[chk]).toLowerCase()==='true';
+    return `<div class="row" style="align-items:flex-end;margin-bottom:10px">
+      <div style="flex:1.6"><label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin-top:0">
+      <input type="checkbox" id="cfg_${chk}" style="width:auto" ${on?'checked':''}> ${label}</label></div>
+      ${nums.map(n=>num(n[0],n[1])).join('')}<div style="flex:1"></div></div>`;};
+  $('configImprove').innerHTML =
+    row('USE_TREND_FILTER','Lọc xu hướng: chỉ vào khi giá > EMA',[['TREND_EMA','EMA (nến ngày)']])
+   +row('USE_TRAILING','Trailing stop: bỏ chốt cứng TP, để lời chạy',[['TRAIL_PCT','Trailing (%)']])
+   +row('USE_STALL_EXIT','Cắt lệnh chết yểu: sau N giờ chưa lời thì thoát',[['STALL_BARS','Số giờ chờ']])
+   +row('USE_GAIN_FILTER','Né vùng tăng chết: bỏ coin đã tăng trong khoảng',[['GAIN_AVOID_LO','Từ (%)'],['GAIN_AVOID_HI','Đến (%)']]);
+}
+async function saveConfig(){
+  const c = await (await fetch('/api/config')).json();
+  const upd={}; Object.keys(c).forEach(k=>{
+    const el=$('cfg_'+k); if(!el) return;
+    if(BOOL_KEYS.includes(k)) upd[k]=el.checked?'true':'false';
+    else if(PCT_KEYS.includes(k)) upd[k]=String(+(parseFloat(el.value||0)/100).toFixed(4));  // 5 -> 0.05
+    else upd[k]=el.value;
+  });
+  await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)});
+  $('cfgMsg').textContent='✓ Đã lưu vào .env (khởi động lại bot để áp dụng)'; setTimeout(()=>$('cfgMsg').textContent='',4000);
+}
+</script>
+</body>
+</html>
