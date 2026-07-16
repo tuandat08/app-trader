@@ -738,7 +738,7 @@ def api_signals():
                         "hint": "Cần máy nối được Binance. Đây là quét trực tiếp, không dùng demo."}), 200
 
 
-APP_VERSION = "V2 (trần vốn 15% · stall≥1% · lọc BTC>EMA)"
+APP_VERSION = "V2.1 (trần vốn 15% · stall≥1% · lọc BTC>EMA · toggle Reversal · Pullback entry)"
 
 if __name__ == "__main__":
     print("=" * 60)
