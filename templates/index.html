@@ -77,107 +77,13 @@
 </header>
 
 <nav>
-  <button data-tab="overview" class="active">Tổng quan</button>
-  <button data-tab="signals">Tín hiệu trực tiếp</button>
-  <button data-tab="backtest">Backtest</button>
+  <button data-tab="bot" class="active">Bot</button>
   <button data-tab="scan">Quét tham số</button>
-  <button data-tab="bot">Bot</button>
   <button data-tab="config">Cấu hình</button>
 </nav>
 
 <main>
   <div class="warn">⚠️ Công cụ giáo dục — không phải lời khuyên đầu tư. Mặc định chạy Testnet + mô phỏng (không tiền thật). Luôn backtest & kiểm chứng trước.</div>
-
-  <!-- OVERVIEW -->
-  <section id="tab-overview">
-    <div class="grid g4">
-      <div class="stat"><div class="label">Trạng thái bot</div><div class="value" id="ovStatus">—</div></div>
-      <div class="stat"><div class="label">Chế độ</div><div class="value" id="ovMode">—</div></div>
-      <div class="stat"><div class="label">Vốn đỉnh (ước tính)</div><div class="value" id="ovPeak">—</div></div>
-      <div class="stat"><div class="label">Vị thế đang mở</div><div class="value" id="ovOpen">—</div></div>
-    </div>
-    <div class="card">
-      <h2>Vị thế đang mở</h2>
-      <table><thead><tr><th>Coin</th><th>Giá vào</th><th>TP</th><th>SL</th><th>Khối lượng</th><th>Mở lúc</th></tr></thead>
-      <tbody id="ovPosBody"><tr><td colspan="6" class="muted">Chưa có vị thế.</td></tr></tbody></table>
-    </div>
-    <div class="card">
-      <h2>Hướng dẫn nhanh</h2>
-      <p class="small muted">1) Tab <b>Backtest</b> → bấm <b>Chạy Demo</b> để xem thử giao diện (dữ liệu giả lập), hoặc <b>Chạy thật</b> để tải dữ liệu Binance.
-      2) Nếu kết quả đạt mục tiêu → tab <b>Cấu hình</b> nhập API key Testnet.
-      3) Tab <b>Bot</b> → Bật để chạy paper trading. Dừng bất cứ lúc nào bằng nút Stop.</p>
-    </div>
-  </section>
-
-  <!-- SIGNALS (live) -->
-  <section id="tab-signals" class="hidden">
-    <div class="card">
-      <h2>Tín hiệu trực tiếp — top gainer hiện tại</h2>
-      <p class="small muted">Lấy top coin tăng mạnh nhất 24h ngay lúc này → phân tích Stoch RSI (8,5,3,3) khung D1/H1 → chỉ ra con nào ĐỦ điều kiện vào lệnh, kèm Entry/TP/SL. <b>Chỉ phân tích để bạn tự quyết & tự đặt lệnh</b> — không tự động giao dịch.</p>
-      <div class="row">
-        <div><label>Số coin top gainer</label><input id="sgN" type="number" value="10"></div>
-        <div><label>Lọc khối lượng tối thiểu ($, 0 = không lọc)</label><input id="sgMinVol" type="number" value="0"></div>
-        <div style="display:flex;align-items:flex-end"><button class="btn green" onclick="loadSignals()">🔄 Quét ngay</button></div>
-        <div style="display:flex;align-items:flex-end"><span id="sgStatus" class="muted small"></span></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Kết quả phân tích</h2>
-      <div style="overflow:auto">
-      <table><thead><tr>
-        <th>#</th><th>Coin</th><th>24h %</th><th>KL 24h</th>
-        <th>D1 (xu hướng)</th><th>H1 (K/D)</th><th>Tín hiệu vào</th>
-        <th>Entry</th><th>TP (+3%)</th><th>SL</th><th>Ghi chú</th>
-      </tr></thead><tbody id="sigBody"><tr><td colspan="11" class="muted">Bấm "Quét ngay" để phân tích top gainer hiện tại.</td></tr></tbody></table>
-      </div>
-      <p class="small muted" style="margin-top:8px">✅ = đủ điều kiện vào lệnh (D1 tăng + không quá mua, H1 cắt lên từ quá bán, nến xanh). Cột "Ghi chú" cảnh báo coin đã tăng quá nóng hoặc thanh khoản thấp — theo tài liệu nên cân nhắc bỏ qua.</p>
-    </div>
-  </section>
-
-  <!-- BACKTEST -->
-  <section id="tab-backtest" class="hidden">
-    <div class="card">
-      <h2>Thiết lập backtest</h2>
-      <div class="row">
-        <div style="flex:2"><label>Danh sách coin (phẩy ngăn cách)</label><input id="btSymbols" value="SOL/USDT,AVAX/USDT,LINK/USDT"></div>
-        <div><label>Số ngày</label><input id="btDays" type="number" value="180"></div>
-        <div><label>Vốn ($)</label><input id="btCapital" type="number" value="1000"></div>
-      </div>
-      <div class="row" style="margin-top:6px">
-        <div><label>Rủi ro/lệnh</label><input id="btRisk" type="number" step="0.005" value="0.02"></div>
-        <div><label>Take Profit</label><input id="btTp" type="number" step="0.005" value="0.03"></div>
-        <div><label>Stop Loss</label><input id="btSl" type="number" step="0.005" value="0.02"></div>
-        <div><label>Số lệnh mở tối đa</label><input id="btMaxOpen" type="number" value="3"></div>
-      </div>
-      <div style="margin-top:14px;display:flex;gap:10px">
-        <button class="btn green" onclick="runBacktest(false)">▶ Chạy thật (Binance)</button>
-        <button class="btn ghost" onclick="runBacktest(true)">🧪 Chạy Demo (offline)</button>
-        <span id="btStatus" class="muted small" style="align-self:center"></span>
-      </div>
-    </div>
-
-    <div id="btResults" class="hidden">
-      <div class="grid g4">
-        <div class="stat"><div class="label">LN/tháng</div><div class="value" id="mMonthly">—</div></div>
-        <div class="stat"><div class="label">Tỷ lệ thắng</div><div class="value" id="mWin">—</div></div>
-        <div class="stat"><div class="label">R:R thực tế</div><div class="value" id="mRr">—</div></div>
-        <div class="stat"><div class="label">Drawdown tối đa</div><div class="value" id="mDd">—</div></div>
-      </div>
-      <div id="verdict" class="verdict"></div>
-      <div class="card"><h2>Đường vốn (Equity Curve)</h2><canvas id="equityChart" height="90"></canvas></div>
-      <div class="grid g2">
-        <div class="card"><h2>Lợi nhuận theo tháng</h2>
-          <table><thead><tr><th>Tháng</th><th>PnL ($)</th><th>Số lệnh</th></tr></thead><tbody id="monthlyBody"></tbody></table></div>
-        <div class="card"><h2>Walk-forward (độ ổn định)</h2>
-          <table><thead><tr><th>Giai đoạn</th><th>LN/th %</th><th>Win %</th><th>Lệnh</th></tr></thead><tbody id="walkBody"></tbody></table></div>
-      </div>
-      <div class="card"><h2>Nhật ký lệnh (<span id="tradeCount">0</span>)</h2>
-        <div style="max-height:340px;overflow:auto">
-        <table><thead><tr><th>Coin</th><th>Vào</th><th>Ra</th><th>Giá vào</th><th>Giá ra</th><th>Lý do</th><th>PnL</th><th>R</th></tr></thead>
-        <tbody id="tradeBody"></tbody></table></div>
-      </div>
-    </div>
-  </section>
 
   <!-- SCAN -->
   <section id="tab-scan" class="hidden">
@@ -313,7 +219,7 @@
   </section>
 
   <!-- BOT -->
-  <section id="tab-bot" class="hidden">
+  <section id="tab-bot">
     <div class="card">
       <h2>Điều khiển bot paper trading</h2>
       <p class="small muted">Bot chạy nền theo cấu hình hiện tại. Mặc định Testnet + mô phỏng (dry_run) nên KHÔNG đặt lệnh tiền thật.</p>
@@ -375,7 +281,7 @@ const fmtMoney = v => (v==null?'—':'$'+Number(v).toLocaleString(undefined,{max
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
-  ['overview','signals','backtest','scan','bot','config'].forEach(t=>$('tab-'+t).classList.add('hidden'));
+  ['scan','bot','config'].forEach(t=>$('tab-'+t).classList.add('hidden'));
   $('tab-'+b.dataset.tab).classList.remove('hidden');
   if(b.dataset.tab==='config') loadConfig();
   if(b.dataset.tab==='bot'){ refreshLogs(); loadLiveStats(); }
@@ -852,7 +758,7 @@ async function botAction(a){
 }
 async function refreshLogs(){
   try{ const r=await(await fetch('/api/logs')).json();
-    $('logBox').textContent = r.lines.length? r.lines.join('\\n') : '(chưa có log)';
+    $('logBox').textContent = r.lines.length? r.lines.join(String.fromCharCode(10)) : '(chưa có log)';
     $('logBox').scrollTop = $('logBox').scrollHeight;
   }catch(e){}
 }
