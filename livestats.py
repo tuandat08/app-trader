@@ -1,6 +1,10 @@
-"""Thống kê giao dịch LIVE từ live_trades.csv — các chỉ số giống backtest."""
+"""
+Thống kê giao dịch LIVE từ nhật ký live_trades.csv — tính các chỉ số GIỐNG backtest
+để bạn có số liệu thật đối chiếu (win rate, R:R, profit factor, drawdown, phân tích thắng/thua).
+"""
 import csv
 import os
+
 import numpy as np
 
 LIVE_TRADES = os.path.join(os.path.dirname(__file__), "live_trades.csv")
@@ -42,17 +46,23 @@ def live_stats(capital=1000.0):
     trades = _load()
     if not trades:
         return {"ok": True, "empty": True, "n": 0}
+
     wins = [t for t in trades if t["pnl"] > 0]
     losses = [t for t in trades if t["pnl"] <= 0]
     n = len(trades)
-    gw = sum(t["pnl"] for t in wins); gl = sum(t["pnl"] for t in losses)
+    gw = sum(t["pnl"] for t in wins)
+    gl = sum(t["pnl"] for t in losses)
     avg_win = np.mean([t["pnl"] for t in wins]) if wins else 0.0
     avg_loss = np.mean([t["pnl"] for t in losses]) if losses else 0.0
+
+    # Đường vốn tích luỹ + drawdown
     eq, peak, maxdd = capital, capital, 0.0
     curve = []
     for t in trades:
-        eq += t["pnl"]; peak = max(peak, eq); maxdd = min(maxdd, eq / peak - 1)
+        eq += t["pnl"]; peak = max(peak, eq)
+        maxdd = min(maxdd, eq / peak - 1)
         curve.append({"t": t.get("closed_at", ""), "v": round(eq, 2)})
+
     reasons = {}
     for t in trades:
         reasons[t["reason"]] = reasons.get(t["reason"], 0) + 1
@@ -62,14 +72,16 @@ def live_stats(capital=1000.0):
         return round(float(np.mean(v)), 2) if v else None
 
     return {
-        "ok": True, "empty": False, "n": n, "n_win": len(wins), "n_loss": len(losses),
+        "ok": True, "empty": False, "n": n,
+        "n_win": len(wins), "n_loss": len(losses),
         "win_rate": round(len(wins) / n * 100, 1) if n else 0,
         "gross_win": round(gw, 2), "gross_loss": round(gl, 2), "net": round(gw + gl, 2),
         "total_return": round((eq - capital) / capital * 100, 2),
         "realized_rr": round(avg_win / -avg_loss, 2) if avg_loss < 0 else None,
         "profit_factor": round(gw / -gl, 2) if gl < 0 else None,
         "expectancy_r": round(float(np.mean([t["R"] for t in trades])), 3) if n else 0,
-        "max_drawdown": round(maxdd * 100, 2), "capital": capital, "final": round(eq, 2),
+        "max_drawdown": round(maxdd * 100, 2),
+        "capital": capital, "final": round(eq, 2),
         "reasons": reasons, "curve": curve,
         "analysis": {
             "win": {"n": len(wins), "avg_ret24": avg(wins, "ret24"), "avg_hold": avg(wins, "hold_bars")},

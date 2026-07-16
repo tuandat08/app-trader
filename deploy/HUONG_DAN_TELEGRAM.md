@@ -1,32 +1,49 @@
-# Cài thông báo Telegram (tuỳ chọn)
+# Nhận thông báo bot qua Telegram (group hoặc chat riêng)
 
-Bot sẽ nhắn tin cho bạn khi khởi động, vào lệnh, thoát lệnh (kèm PnL và thống kê dồn).
+Bot sẽ tự nhắn khi: khởi động, **vào lệnh** (coin, giá, SL, khối lượng), **thoát lệnh**
+(lời/lỗ $ và %, R, lý do) kèm **tổng tích luỹ** (số lệnh, thắng/thua, ròng), và khi dừng
+hoặc chạm ngưỡng an toàn.
 
-## 1. Tạo bot Telegram → lấy TOKEN
-1. Mở Telegram, tìm **@BotFather**.
-2. Gõ `/newbot` → đặt tên và username (kết thúc bằng `bot`, ví dụ `trader3_kas_bot`).
-3. BotFather trả về một chuỗi dạng `123456789:ABCdef...` → đây là **TELEGRAM_TOKEN**.
+## Bước 1 — Tạo bot Telegram
+1. Trong Telegram, tìm **@BotFather** → gõ `/newbot` → đặt tên → nhận **TOKEN**
+   (dạng `123456:ABC-xyz...`). Lưu lại.
 
-## 2. Lấy CHAT_ID của bạn
-1. Bấm vào link bot vừa tạo, nhấn **Start** và gửi cho nó một tin bất kỳ (ví dụ "hi").
-2. Mở trình duyệt, thay `<TOKEN>` rồi truy cập:
-   ```
-   https://api.telegram.org/bot<TOKEN>/getUpdates
-   ```
-3. Tìm `"chat":{"id":123456789` — số đó là **TELEGRAM_CHAT_ID**.
-   (Nếu thấy rỗng, gửi thêm 1 tin cho bot rồi tải lại trang.)
+## Bước 2 — Lấy Chat ID
+**Nếu gửi vào GROUP:**
+1. Tạo group (hoặc dùng group sẵn có) → **thêm bot bạn vừa tạo vào group**.
+2. Gửi một tin bất kỳ trong group (vd "hello").
+3. Mở trình duyệt: `https://api.telegram.org/bot<TOKEN>/getUpdates`
+   (thay `<TOKEN>` bằng token của bạn).
+4. Tìm dòng `"chat":{"id":-100xxxxxxxxxx` — số **âm** đó là **Chat ID của group**.
 
-## 3. Điền vào `.env`
+**Nếu gửi vào chat riêng với bot:** nhắn `/start` cho bot, rồi cũng mở link getUpdates,
+lấy `"chat":{"id":123456...}` (số dương).
+
+> Mẹo nếu không thấy update: dùng thêm bot **@RawDataBot** hoặc **@userinfobot** trong group
+> để lấy nhanh Chat ID.
+
+## Bước 3 — Điền vào cấu hình
+Trên dashboard → tab **Cấu hình** → điền:
+- **Telegram Token** = TOKEN ở Bước 1
+- **Telegram Chat ID** = Chat ID ở Bước 2 (nhớ dấu `-` nếu là group)
+→ **Lưu cấu hình**, rồi **tắt/bật lại bot**.
+
+Ngay khi bật lại, bạn sẽ nhận tin "▶️ BOT KHỞI ĐỘNG…" trong group — đó là xác nhận đã nối thành công.
+
+## Cần cài thư viện `requests`
+Đã có trong `requirements.txt`. Nếu thiếu: `pip install requests`.
+
+## Ví dụ tin nhắn bạn sẽ nhận
 ```
-TELEGRAM_TOKEN=123456789:ABCdef...
-TELEGRAM_CHAT_ID=123456789
+🟢 VÀO LỆNH SOL/USDT · đã tăng 12.3%/24h
+• Giá vào: $185.40
+• SL: $181.69 (-2.0%)
+• Khối lượng: 5.39 (~$1000)
+• Rủi ro tối đa: $20.00
+
+✅ ĐÓNG SOL/USDT — LỜI (+$47.30)
+• Lý do: Trail
+• Giá ra: $194.18 (+4.73%) · +2.37R
+• Giữ: 6h
+📊 Tổng: 12 lệnh · Thắng 5/Thua 7 (41.7%) · Ròng $+118.40 (+11.84%)
 ```
-
-## 4. Kiểm tra
-- Trên dashboard → tab **Cấu hình** → nút **"Gửi thử Telegram"**. Nếu điện thoại nhận được tin là OK.
-- Hoặc khởi động bot: bạn sẽ nhận tin "Bot đã khởi động".
-
-## Gỡ lỗi
-- Không nhận tin: kiểm tra đã bấm **Start** với bot chưa; TOKEN/CHAT_ID đúng chưa (không dư dấu cách).
-- Muốn gửi vào nhóm: thêm bot vào nhóm, CHAT_ID nhóm là số ÂM (bắt đầu bằng `-`).
-- Telegram là tuỳ chọn — để trống 2 dòng trên thì bot vẫn chạy, chỉ không có thông báo.

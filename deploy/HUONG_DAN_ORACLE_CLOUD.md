@@ -1,73 +1,132 @@
-# Chạy bot 24/7 miễn phí trên Oracle Cloud (Always Free)
+# Chạy bot 24/7 miễn phí trên Oracle Cloud (Always-Free)
 
-Mục tiêu: bot chạy liên tục cả khi tắt máy tính. Oracle Cloud cho VM miễn phí vĩnh viễn
-(Always Free) — đủ mạnh cho bot này.
+Mục tiêu: đưa bot lên một máy ảo Linux miễn phí chạy liên tục, tự khởi động lại nếu lỗi,
+tự bật lại khi máy reboot. Toàn bộ dùng cho **paper trading Testnet (tiền ảo)**.
 
-## 1. Tạo tài khoản & VM
-1. Đăng ký tại https://www.oracle.com/cloud/free/ (cần thẻ để xác minh, KHÔNG bị trừ tiền nếu chỉ dùng Always Free).
-2. Menu → **Compute → Instances → Create Instance**.
-3. Image: **Ubuntu 22.04**. Shape: **VM.Standard.A1.Flex** (ARM, 1 OCPU / 6 GB là quá đủ) —
-   nằm trong Always Free. Nếu hết ARM, chọn **VM.Standard.E2.1.Micro** (x86).
-4. Phần **SSH keys**: bấm "Save private key" và "Save public key" → giữ file `.key` cẩn thận.
-5. Create. Chờ ~1 phút, ghi lại **Public IP**.
+> Mẹo: đọc chậm, làm từng bước. Không cần biết Linux nhiều — chỉ copy/paste lệnh.
 
-## 2. Mở cổng 5000 (để xem dashboard) — tuỳ chọn
-Nếu muốn mở dashboard qua trình duyệt:
-- **Networking → Virtual Cloud Networks → (VCN của bạn) → Security Lists → Default** →
-  Add Ingress Rule: Source `0.0.0.0/0`, Protocol TCP, Destination port **5000**.
-- Trên VM cũng mở tường lửa: `sudo iptables -I INPUT -p tcp --dport 5000 -j ACCEPT`
-  (hoặc dùng SSH tunnel ở mục 6 cho an toàn hơn — khuyến nghị).
+---
 
-## 3. SSH vào máy chủ
+## Phần A — Tạo máy ảo miễn phí
+
+1. Vào **https://cloud.oracle.com** → **Sign up**. Cần thẻ để xác minh, nhưng gói
+   **Always Free** không bị tính tiền. Chọn **Home Region** gần bạn (vd Singapore).
+2. Sau khi vào Console: menu ☰ → **Compute** → **Instances** → **Create instance**.
+3. Cấu hình:
+   - **Name**: trader-bot
+   - **Image**: bấm *Edit* → chọn **Canonical Ubuntu 22.04**.
+   - **Shape**: bấm *Edit* → chọn shape có nhãn **"Always Free eligible"**
+     (VM.Standard.A1.Flex — ARM, hoặc VM.Standard.E2.1.Micro — AMD). Cả hai đều đủ dùng.
+   - **SSH keys**: chọn **Generate a key pair for me** → **Download private key**
+     (lưu file `.key` này thật kỹ, đây là chìa khoá vào máy).
+4. Bấm **Create**. Chờ ~1 phút tới khi trạng thái **RUNNING**. Ghi lại **Public IP address**.
+
+---
+
+## Phần B — Kết nối vào máy
+
+Trên máy Mac của bạn, mở Terminal, vào thư mục chứa file key vừa tải:
 ```bash
-chmod 600 duong-dan-toi-file.key
-ssh -i duong-dan-toi-file.key ubuntu@<PUBLIC_IP>
+chmod 600 ~/Downloads/ssh-key-*.key           # đổi đúng tên file key
+ssh -i ~/Downloads/ssh-key-*.key ubuntu@<PUBLIC_IP>
 ```
+Gõ `yes` nếu được hỏi. Khi thấy dấu nhắc `ubuntu@...:~$` là đã vào máy ảo.
 
-## 4. Cài đặt bot
+---
+
+## Phần C — Cài đặt bot
+
+Chạy lần lượt (trên máy ảo):
 ```bash
-sudo apt update && sudo apt install -y python3-venv python3-pip unzip
-# Tải code lên: dùng scp từ máy bạn, hoặc git clone nếu bạn đã đẩy lên git
-# Ví dụ scp (chạy ở MÁY BẠN, không phải trên server):
-#   scp -i file.key -r "app-trader" ubuntu@<PUBLIC_IP>:/home/ubuntu/
+sudo apt update && sudo apt install -y python3-pip python3-venv git
 
-cd /home/ubuntu/app-trader
+# Lấy code về. Cách 1: từ GitHub của bạn (nếu repo private, dùng token/SSH):
+git clone https://github.com/tuandat08/app-trader.git
+cd app-trader
+
+# Môi trường ảo + thư viện
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
+# Kiểm thử (không cần mạng Binance)
+python selftest.py
+```
+
+Nếu repo private và `git clone` đòi mật khẩu, cách đơn giản: từ máy Mac đẩy code lên bằng `scp`:
+```bash
+# chạy trên MÁY MAC, không phải máy ảo:
+scp -i ~/Downloads/ssh-key-*.key -r "/đường/dẫn/app-trader" ubuntu@<PUBLIC_IP>:/home/ubuntu/
+```
+
+---
+
+## Phần D — Cấu hình API Testnet
+Tạo file `.env` trên máy ảo:
+```bash
 cp .env.example .env
-nano .env          # điền API key testnet, Telegram... rồi Ctrl+O, Enter, Ctrl+X
-python selftest.py # kiểm thử nhanh
+nano .env
+```
+Điền: `TRADE_MODE=testnet`, `DRY_RUN=false`, `BINANCE_API_KEY=...`, `BINANCE_API_SECRET=...`
+(key testnet), giữ nguyên các dòng cải tiến và `MAX_CAPITAL=1000`. Lưu: `Ctrl+O` → Enter → `Ctrl+X`.
+Bảo mật file key:
+```bash
+chmod 600 .env
 ```
 
-## 5. Chạy nền vĩnh viễn bằng systemd
+---
+
+## Phần E — Chạy 24/7 bằng dịch vụ systemd (tự khởi động lại)
+
+1. Chép file dịch vụ có sẵn trong `deploy/` vào hệ thống:
 ```bash
-# Sửa User / đường dẫn trong file service nếu cần
 sudo cp deploy/trader3-bot.service /etc/systemd/system/
+```
+2. Kích hoạt (tự chạy khi máy bật + chạy ngay):
+```bash
 sudo systemctl daemon-reload
-sudo systemctl enable trader3-bot     # tự chạy khi máy khởi động lại
-sudo systemctl start trader3-bot
-sudo systemctl status trader3-bot     # xem trạng thái (q để thoát)
-tail -f bot.log                       # xem log trực tiếp
+sudo systemctl enable --now trader3-bot
 ```
-
-Lệnh quản lý: `sudo systemctl restart trader3-bot` (khởi động lại),
-`sudo systemctl stop trader3-bot` (dừng).
-
-## 6. Xem dashboard an toàn qua SSH tunnel (khuyến nghị)
-Không cần mở cổng 5000 ra internet. Chạy ở MÁY BẠN:
+3. Kiểm tra & xem log trực tiếp:
 ```bash
-ssh -i file.key -L 5000:localhost:5000 ubuntu@<PUBLIC_IP>
+systemctl status trader3-bot          # đang chạy chưa
+journalctl -u trader3-bot -f          # xem log cuộn theo thời gian thực (Ctrl+C để thoát)
 ```
-Rồi mở trình duyệt: http://localhost:5000
 
-## 7. Cập nhật code mới
+Từ giờ bot chạy **24/7**, tự khởi động lại nếu crash, tự bật lại khi máy reboot.
+
+**Lệnh quản lý:**
 ```bash
-# đẩy code mới lên (scp/git) rồi:
-sudo systemctl restart trader3-bot
+sudo systemctl stop trader3-bot       # dừng
+sudo systemctl start trader3-bot      # chạy lại
+sudo systemctl restart trader3-bot    # nạp lại sau khi sửa .env
 ```
 
-## Lưu ý an toàn
-- Luôn để **DRY_RUN=true** và **TRADE_MODE=testnet** cho tới khi bạn thực sự tin tưởng.
-- KHÔNG bao giờ commit/chia sẻ file `.env` (chứa key).
-- Nếu mở cổng 5000 ra internet, hãy đặt sau reverse proxy có mật khẩu, hoặc chỉ dùng SSH tunnel.
+---
+
+## Phần F — Xem dashboard để theo dõi (tuỳ chọn, an toàn)
+KHÔNG mở cổng 5000 ra internet (vì chứa liên quan tới key). Thay vào đó dùng **SSH tunnel**:
+
+Trên máy ảo, chạy dashboard ở chế độ nền:
+```bash
+source .venv/bin/activate
+nohup python webapp.py > dashboard.log 2>&1 &
+```
+Trên **máy Mac**, mở tunnel:
+```bash
+ssh -i ~/Downloads/ssh-key-*.key -L 5000:localhost:5000 ubuntu@<PUBLIC_IP>
+```
+Rồi mở trình duyệt máy Mac vào **http://localhost:5000** — bạn xem được tab Thống kê Live,
+log, cấu hình của bot đang chạy trên máy ảo.
+
+> Lưu ý: trên máy ảo, hãy điều khiển bot bằng lệnh `systemctl` (Phần E), ĐỪNG bấm nút
+> Bật/Dừng trong dashboard — vì sẽ tạo ra một bot thứ hai chạy song song. Dashboard ở đây
+> chỉ để **xem** số liệu.
+
+---
+
+## An toàn
+- File `.env` chứa API key — luôn `chmod 600`, không chia sẻ, không commit lên git.
+- Giai đoạn testnet là tiền ảo nên rủi ro thấp. Khi lên tiền thật: bật IP whitelist cho API
+  key (chỉ cho phép IP của máy ảo), không bật quyền rút tiền, và cân nhắc tường lửa chặt hơn.
+- Muốn tắt hẳn: `sudo systemctl disable --now trader3-bot`.

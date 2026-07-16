@@ -1,4 +1,7 @@
-"""Dữ liệu OHLCV giả lập cho demo/kiểm thử offline (KHÔNG phản ánh hiệu quả thật)."""
+"""
+Sinh dữ liệu OHLCV GIẢ LẬP để chạy thử dashboard/backtest khi KHÔNG có internet.
+CẢNH BÁO: đây là dữ liệu ngẫu nhiên, KHÔNG phản ánh hiệu quả thật của chiến lược.
+"""
 import numpy as np
 import pandas as pd
 
@@ -17,7 +20,8 @@ def synth_h1(n_hours: int, seed: int, start: float = 100.0) -> pd.DataFrame:
     high = np.maximum(open_, close) + noise
     low = np.minimum(open_, close) - noise
     vol = rng.uniform(1e5, 5e5, n_hours)
-    return pd.DataFrame({"open": open_, "high": high, "low": low, "close": close, "volume": vol}, index=idx)
+    return pd.DataFrame({"open": open_, "high": high, "low": low,
+                         "close": close, "volume": vol}, index=idx)
 
 
 def to_daily(h1: pd.DataFrame) -> pd.DataFrame:

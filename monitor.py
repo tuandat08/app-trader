@@ -1,4 +1,7 @@
-"""Giám sát: log ra màn hình + file, cảnh báo Telegram, kill-switch (file STOP)."""
+"""
+Giám sát: ghi log ra màn hình + file, gửi cảnh báo Telegram (tuỳ chọn),
+và kiểm tra kill-switch (dừng bot an toàn bằng cách tạo file STOP).
+"""
 import os
 import logging
 from datetime import datetime, timezone
@@ -35,7 +38,9 @@ class Notifier:
         try:
             requests.post(
                 f"https://api.telegram.org/bot{c.telegram_token}/sendMessage",
-                data={"chat_id": c.telegram_chat_id, "text": text}, timeout=10)
+                data={"chat_id": c.telegram_chat_id, "text": text},
+                timeout=10,
+            )
         except Exception as e:
             self.log.warning(f"Gửi Telegram lỗi: {e}")
 
@@ -46,6 +51,7 @@ class Notifier:
 
 
 def kill_requested(kill_file="STOP") -> bool:
+    """True nếu tồn tại file kill-switch -> yêu cầu dừng bot an toàn."""
     return os.path.exists(kill_file)
 
 

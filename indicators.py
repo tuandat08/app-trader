@@ -1,4 +1,9 @@
-"""Chỉ báo — Stochastic RSI (8,5,3,3). %K = xanh, %D = đỏ. Quá bán <20 | quá mua >80."""
+"""
+Chỉ báo kỹ thuật — Stochastic RSI theo cấu hình tài liệu (8, 5, 3, 3).
+
+Ánh xạ thông số TradingView (đọc từ trên xuống): K=8, D=5, RSI Length=3, Stoch Length=3.
+Đường "xanh" = %K, "đỏ" = %D. Quá bán < 20 | Quá mua > 80.
+"""
 import numpy as np
 import pandas as pd
 
@@ -24,9 +29,9 @@ def stoch_rsi(close, k_smooth=8, d_smooth=5, rsi_length=3, stoch_length=3) -> pd
     return pd.DataFrame({"k": k, "d": d}, index=close.index)
 
 
-def cross_up(k, d):
+def cross_up(k: pd.Series, d: pd.Series) -> pd.Series:
     return (k > d) & (k.shift(1) <= d.shift(1))
 
 
-def cross_down(k, d):
+def cross_down(k: pd.Series, d: pd.Series) -> pd.Series:
     return (k < d) & (k.shift(1) >= d.shift(1))

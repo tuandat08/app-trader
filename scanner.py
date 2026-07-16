@@ -1,10 +1,14 @@
-"""Quét tín hiệu thời gian thực (chỉ dùng nến đã đóng)."""
+"""
+Quét tín hiệu thời gian thực: với mỗi symbol, lấy nến H1 & D1 gần nhất
+(chỉ dùng nến ĐÃ ĐÓNG) rồi áp dụng strategy.latest_signal.
+"""
 import pandas as pd
 from strategy import Params, latest_signal
 from data import fetch_recent
 
 
 def _closed_only(df: pd.DataFrame) -> pd.DataFrame:
+    """Bỏ nến cuối nếu nó chưa đóng (an toàn: luôn bỏ nến đang chạy)."""
     return df.iloc[:-1] if len(df) > 1 else df
 
 
