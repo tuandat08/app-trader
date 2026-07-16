@@ -53,7 +53,7 @@ def decide_exit(pos, price, reversal, held_bars, p):
             return "TP", pos["tp"]
     if reversal:
         return "Reversal", price
-    if p.use_stall_exit and held_bars >= p.stall_bars and price <= pos["entry"]:
+    if p.use_stall_exit and held_bars >= p.stall_bars and price <= pos["entry"] * (1 + p.stall_min_profit):
         return "Stall", price
     if held_bars >= p.max_hold_bars:
         return "TimeStop", price
@@ -70,6 +70,20 @@ def _load_state():
 def _save_state(state):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2, default=str)
+
+
+def _market_ok(p, ex) -> bool:
+    """V2: chỉ cho vào lệnh khi thị trường (BTC) trên EMA dài hạn. Lỗi → không chặn."""
+    if not p.use_market_filter:
+        return True
+    try:
+        d1 = _closed_only(fetch_recent(p.market_symbol, "1d", limit=max(p.market_ema + 5, 60), exchange=ex))
+        if len(d1) < p.market_ema:
+            return True
+        ema = d1["close"].ewm(span=p.market_ema, adjust=False, min_periods=p.market_ema).mean()
+        return bool(d1["close"].iloc[-1] > ema.iloc[-1])
+    except Exception:
+        return True
 
 
 def _reversal_exit(symbol, p, ex) -> bool:
@@ -189,8 +203,9 @@ def run(cfg, should_stop=None):
             # 4) Ngưng lỗ ngày
             blocked = dstop.update(now_utc().date(), equity)
 
-            # 5) Vào lệnh
-            if not blocked and len(state["open"]) < cfg.max_open_trades:
+            # 5) Vào lệnh (V2: thêm điều kiện thị trường BTC > EMA)
+            market_ok = _market_ok(p, data_ex)
+            if not blocked and market_ok and len(state["open"]) < cfg.max_open_trades:
                 signals = scan(symbols, p, data_ex)
                 for s in signals:
                     if len(state["open"]) >= cfg.max_open_trades:
@@ -198,7 +213,8 @@ def run(cfg, should_stop=None):
                     if not s.get("signal") or s["symbol"] in state["open"]:
                         continue
                     entry, sl, tp = s["entry"], s["sl"], s["tp"]
-                    sz = position_size(equity, entry, sl, cfg.risk_per_trade, cash)
+                    sz = position_size(equity, entry, sl, cfg.risk_per_trade, cash,
+                                       max_equity_per_trade=p.max_equity_per_trade)
                     if sz["qty"] <= 0 or sz["notional"] < 10:
                         continue
                     buy = execu.market_buy(s["symbol"], sz["qty"])

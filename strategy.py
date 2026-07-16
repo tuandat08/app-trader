@@ -29,6 +29,8 @@ class Params:
     risk_per_trade: float = 0.02
     max_open_trades: int = 3
     daily_stop: float = 0.05
+    max_equity_per_trade: float = 0.0   # V2: trần vốn tối đa/lệnh (0 = không giới hạn; 0.15 = 15%)
+    stall_min_profit: float = 0.0       # V2: mốc lời tối thiểu để KHÔNG bị cắt "chết yểu" (0.01 = 1%)
     # --- Cải tiến (mặc định TẮT để giữ nguyên baseline) ---
     use_trend_filter: bool = False   # chỉ vào khi giá > EMA (lọc downtrend)
     trend_ema: int = 50
@@ -87,6 +89,12 @@ def params_from_config(cfg) -> Params:
         use_stall_exit=cfg.use_stall_exit, stall_bars=cfg.stall_bars,
         use_gain_filter=cfg.use_gain_filter,
         gain_avoid_lo=cfg.gain_avoid_lo, gain_avoid_hi=cfg.gain_avoid_hi,
+        # V2
+        use_market_filter=getattr(cfg, "use_market_filter", False),
+        market_ema=getattr(cfg, "market_ema", 50),
+        market_symbol=getattr(cfg, "market_symbol", "BTC/USDT"),
+        max_equity_per_trade=getattr(cfg, "max_equity_per_trade", 0.0),
+        stall_min_profit=getattr(cfg, "stall_min_profit", 0.0),
     )
 
 

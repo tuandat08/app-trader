@@ -348,12 +348,15 @@ def _improvements(body):
         "use_trailing": bool(body.get("use_trailing")),
         "trail_pct": float(body.get("trail_pct", 3) or 3) / 100,
         "use_market_filter": bool(body.get("use_market")),
-        "market_ema": int(body.get("market_ema", 100) or 100),
+        "market_ema": int(body.get("market_ema", 50) or 50),
         "use_stall_exit": bool(body.get("use_stall")),
         "stall_bars": int(body.get("stall_bars", 12) or 12),
         "use_gain_filter": bool(body.get("use_gainfilter")),
         "gain_avoid_lo": float(body.get("gain_lo", 5) or 5) / 100,
         "gain_avoid_hi": float(body.get("gain_hi", 10) or 10) / 100,
+        # V2: trần vốn/lệnh & mốc lời tối thiểu cho stall (áp cho mọi tổ hợp trong lần quét)
+        "max_equity_per_trade": float(body.get("max_equity", 15) or 15) / 100,
+        "stall_min_profit": float(body.get("stall_min", 1) or 1) / 100,
     }
 
 

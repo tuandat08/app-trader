@@ -78,6 +78,13 @@ class Config:
     gain_avoid_lo: float = _get_float("GAIN_AVOID_LO", 0.05)
     gain_avoid_hi: float = _get_float("GAIN_AVOID_HI", 0.10)
 
+    # --- V2 (bản thực chiến) ---
+    use_market_filter: bool = _get_bool("USE_MARKET_FILTER", True)   # chỉ vào khi BTC > EMA
+    market_ema: int = _get_int("MARKET_EMA", 50)                     # BTC > EMA50 (nến ngày)
+    market_symbol: str = _get("MARKET_SYMBOL", "BTC/USDT")
+    max_equity_per_trade: float = _get_float("MAX_EQUITY_PER_TRADE", 0.15)  # trần vốn 15%/lệnh
+    stall_min_profit: float = _get_float("STALL_MIN_PROFIT", 0.01)   # cắt chết yểu nếu chưa lời >1%
+
     # --- An toàn ---
     hard_stop_on_exchange: bool = _get_bool("HARD_STOP_ON_EXCHANGE", True)
     max_total_drawdown: float = _get_float("MAX_TOTAL_DRAWDOWN", 0.20)  # dừng bot nếu -20%

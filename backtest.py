@@ -124,7 +124,7 @@ def run_backtest(data: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]], p: Params,
                     ex, reason = eff_sl, ("Trail" if trail_stop > tr.sl else "SL")
                 elif row["k"] > p.ob_level and row["d"] > p.ob_level and row["cross_down"]:
                     ex, reason = float(row["close"]), "Reversal"
-                elif p.use_stall_exit and pp["bars"] >= p.stall_bars and float(row["close"]) <= tr.entry:
+                elif p.use_stall_exit and pp["bars"] >= p.stall_bars and float(row["close"]) <= tr.entry * (1 + p.stall_min_profit):
                     ex, reason = float(row["close"]), "Stall"
                 elif pp["bars"] >= p.max_hold_bars:
                     ex, reason = float(row["close"]), "TimeStop"
@@ -135,7 +135,7 @@ def run_backtest(data: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]], p: Params,
                     ex, reason = tr.tp, "TP"
                 elif row["k"] > p.ob_level and row["d"] > p.ob_level and row["cross_down"]:
                     ex, reason = float(row["close"]), "Reversal"
-                elif p.use_stall_exit and pp["bars"] >= p.stall_bars and float(row["close"]) <= tr.entry:
+                elif p.use_stall_exit and pp["bars"] >= p.stall_bars and float(row["close"]) <= tr.entry * (1 + p.stall_min_profit):
                     ex, reason = float(row["close"]), "Stall"
                 elif pp["bars"] >= p.max_hold_bars:
                     ex, reason = float(row["close"]), "TimeStop"
@@ -178,7 +178,8 @@ def run_backtest(data: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]], p: Params,
                 if sl >= entry:
                     continue
                 tp = entry * (1 + p.tp_pct)
-                sz = position_size(eq, entry, sl, p.risk_per_trade, cash)
+                sz = position_size(eq, entry, sl, p.risk_per_trade, cash,
+                                   max_equity_per_trade=p.max_equity_per_trade)
                 if sz["qty"] <= 0 or sz["notional"] < 10:
                     continue
                 fee = sz["notional"] * FEE_RATE

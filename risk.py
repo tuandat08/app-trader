@@ -6,12 +6,15 @@ from dataclasses import dataclass
 
 
 def position_size(equity: float, entry: float, sl: float, risk_per_trade: float,
-                  cash_available: float) -> dict:
+                  cash_available: float, max_equity_per_trade: float = 0.0) -> dict:
     """
     Trả về {'qty', 'notional', 'risk_amount'} theo quy tắc rủi ro cố định.
       - risk_amount = equity * risk_per_trade
       - qty = risk_amount / (entry - sl)
       - Không đòn bẩy: notional không vượt quá tiền mặt khả dụng.
+      - V2 max_equity_per_trade > 0: TRẦN vốn/lệnh = equity * tỷ lệ này. Khi SL quá hẹp,
+        rủi ro 2% có thể đòi dùng 40% ví → hàm min chặn lại, chỉ cho dùng tối đa trần này
+        (chống bẫy thanh khoản). Rủi ro thực khi đó sẽ NHỎ hơn 2%.
     """
     if entry <= sl:
         return {"qty": 0.0, "notional": 0.0, "risk_amount": 0.0}
@@ -19,8 +22,12 @@ def position_size(equity: float, entry: float, sl: float, risk_per_trade: float,
     risk_per_unit = entry - sl
     qty = risk_amount / risk_per_unit
     notional = qty * entry
-    if notional > cash_available:
-        qty = cash_available / entry
+    # Trần vốn: min(tiền mặt, equity * max_equity_per_trade)
+    cap = cash_available
+    if max_equity_per_trade and max_equity_per_trade > 0:
+        cap = min(cap, equity * max_equity_per_trade)
+    if notional > cap:
+        qty = cap / entry
         notional = qty * entry
         risk_amount = qty * risk_per_unit  # rủi ro thực sau khi thu nhỏ
     return {"qty": qty, "notional": notional, "risk_amount": risk_amount}
