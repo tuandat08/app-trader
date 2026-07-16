@@ -1,0 +1,22 @@
+[Unit]
+Description=Trader 3% - Bot Momentum (webapp + paper trading)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Đổi <USER> và đường dẫn cho khớp máy chủ của bạn
+User=ubuntu
+WorkingDirectory=/home/ubuntu/app-trader
+# Dùng Python trong virtualenv đã tạo (xem HUONG_DAN_ORACLE_CLOUD.md)
+ExecStart=/home/ubuntu/app-trader/.venv/bin/python webapp.py
+Restart=always
+RestartSec=5
+# Nạp biến môi trường từ .env (key API, Telegram...)
+EnvironmentFile=/home/ubuntu/app-trader/.env
+# Ghi log ra journald
+StandardOutput=append:/home/ubuntu/app-trader/bot.log
+StandardError=append:/home/ubuntu/app-trader/bot.log
+
+[Install]
+WantedBy=multi-user.target

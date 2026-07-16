@@ -1,0 +1,12 @@
+.env
+cache/
+*.log
+state.json
+scans/
+trade_log.csv
+live_trades.csv
+equity_curve.csv
+monthly_returns.csv
+__pycache__/
+*.pyc
+STOP
