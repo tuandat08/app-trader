@@ -89,6 +89,19 @@ class Config:
     use_reversal_exit: bool = _get_bool("USE_REVERSAL_EXIT", True)   # thoát khi StochRSI cắt xuống
     use_pullback_entry: bool = _get_bool("USE_PULLBACK_ENTRY", False)  # vào lúc nến H1 đỏ (nghỉ lấy đà)
 
+    # --- VAB (Volume Anomaly Breakout) ---
+    strategy_mode: str = _get("STRATEGY_MODE", "stochrsi")   # "stochrsi" | "vab"
+    vab_timeframe: str = _get("VAB_TIMEFRAME", "1h")         # "1h" | "4h"
+    vol_mult: float = _get_float("VOL_MULT", 3.0)
+    squeeze_lookback: int = _get_int("SQUEEZE_LOOKBACK", 50)
+    bb_period: int = _get_int("BB_PERIOD", 20)
+    atr_mult: float = _get_float("ATR_MULT", 2.0)
+
+    # --- Funding Contrarian Long (FCL) ---
+    funding_quantile: float = _get_float("FUNDING_QUANTILE", 0.2)
+    funding_max: float = _get_float("FUNDING_MAX", 0.0)
+    funding_exit_pos: bool = _get_bool("FUNDING_EXIT_POS", True)
+
     # --- An toàn ---
     hard_stop_on_exchange: bool = _get_bool("HARD_STOP_ON_EXCHANGE", True)
     max_total_drawdown: float = _get_float("MAX_TOTAL_DRAWDOWN", 0.20)  # dừng bot nếu -20%

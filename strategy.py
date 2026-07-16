@@ -34,6 +34,26 @@ class Params:
     # --- V2.1 (thử nghiệm giả thuyết) ---
     use_reversal_exit: bool = True      # thoát khi StochRSI cắt xuống. TẮT = để Trailing/SL/Stall tự quyết
     use_pullback_entry: bool = False    # vào lúc "nghỉ lấy đà": nến H1 ĐỎ + StochRSI vùng thấp (thay vì xanh + cross up)
+
+    # --- VAB (Volume Anomaly Breakout) — chiến lược thay thế ---
+    strategy_mode: str = "stochrsi"     # "stochrsi" | "vab"
+    vab_timeframe: str = "1h"           # "1h" | "4h" (H4 resample từ nến H1)
+    bb_period: int = 20                 # Bollinger Bands
+    bb_mult: float = 2.0
+    squeeze_lookback: int = 50          # BBW phải ở mức thấp nhất trong N nến (nén)
+    vol_ma_period: int = 20             # MA khối lượng
+    vol_mult: float = 3.0               # volume > vol_mult × MA20 (đột biến)
+    vab_max_candle: float = 0.02        # nến breakout dài >2% (entry→đáy) thì HỦY lệnh
+    use_breakeven: bool = True          # đạt 1R thì dời SL về hoà vốn
+    atr_period: int = 14
+    atr_mult: float = 2.0               # trailing = đỉnh − atr_mult×ATR
+    use_atr_trailing: bool = True       # dùng ATR trailing thay trailing % tĩnh (cho VAB)
+    false_breakout_exit: bool = True    # giá chui ngược xuống dưới dải giữa BB → cắt
+
+    # --- Funding Contrarian Long (FCL) ---
+    funding_quantile: float = 0.2       # long coin nằm trong nhóm funding ÂM nhất (20% thấp nhất)
+    funding_max: float = 0.0            # chỉ long nếu funding < ngưỡng này (âm = short chen chúc)
+    funding_exit_pos: bool = True       # thoát khi funding quay về >= 0 (hết chen chúc)
     # --- Cải tiến (mặc định TẮT để giữ nguyên baseline) ---
     use_trend_filter: bool = False   # chỉ vào khi giá > EMA (lọc downtrend)
     trend_ema: int = 50
@@ -106,6 +126,16 @@ def params_from_config(cfg) -> Params:
         stall_min_profit=getattr(cfg, "stall_min_profit", 0.0),
         use_reversal_exit=getattr(cfg, "use_reversal_exit", True),
         use_pullback_entry=getattr(cfg, "use_pullback_entry", False),
+        # VAB
+        strategy_mode=getattr(cfg, "strategy_mode", "stochrsi"),
+        vab_timeframe=getattr(cfg, "vab_timeframe", "1h"),
+        vol_mult=getattr(cfg, "vol_mult", 3.0),
+        squeeze_lookback=getattr(cfg, "squeeze_lookback", 50),
+        bb_period=getattr(cfg, "bb_period", 20),
+        atr_mult=getattr(cfg, "atr_mult", 2.0),
+        funding_quantile=getattr(cfg, "funding_quantile", 0.2),
+        funding_max=getattr(cfg, "funding_max", 0.0),
+        funding_exit_pos=getattr(cfg, "funding_exit_pos", True),
     )
 
 

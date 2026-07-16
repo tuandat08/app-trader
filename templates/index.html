@@ -115,6 +115,17 @@
         <div><label>Tối thiểu số lệnh</label><input id="scMinTrades" type="number" value="10"></div>
       </div>
       <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px">
+        <div class="small muted" style="margin-bottom:6px"><b>Chiến lược:</b></div>
+        <div class="row" style="margin-bottom:10px">
+          <div style="max-width:220px"><label>Kiểu tín hiệu</label>
+            <select id="scStrategy"><option value="stochrsi">StochRSI Top-Gainer (cũ)</option><option value="vab">VAB — Volume Anomaly Breakout</option><option value="funding">Funding Contrarian Long (FCL)</option></select></div>
+          <div style="max-width:150px"><label>Khung (VAB)</label>
+            <select id="scVabTf"><option value="1h">H1</option><option value="4h">H4</option></select></div>
+          <div style="max-width:150px"><label>Volume ≥ ×MA20</label><input id="scVolMult" type="number" step="0.5" value="3"></div>
+          <div style="max-width:150px"><label>Nén (số nến)</label><input id="scSqueeze" type="number" value="50"></div>
+          <div style="max-width:170px"><label>Funding: % âm nhất</label><input id="scFundQ" type="number" step="5" value="20"></div>
+        </div>
+        <div class="small muted" style="margin-bottom:6px">VAB tự dùng: SL dưới đáy nến breakout · breakeven 1R · ATR trailing ×2 · false-breakout. Các ô "Cải tiến" bên dưới chỉ áp cho StochRSI (trừ Lọc thị trường + trần vốn + stall dùng chung).</div>
         <div class="small muted" style="margin-bottom:6px"><b>Cải tiến (bật để so sánh với baseline):</b></div>
         <div class="row">
           <div style="flex:1.4"><label style="display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;margin-top:0">
@@ -440,7 +451,10 @@ async function runScan(demo){
     use_stall:$('scStall').checked, stall_bars:+$('scStallBars').value,
     use_gainfilter:$('scGain').checked, gain_lo:+$('scGainLo').value, gain_hi:+$('scGainHi').value,
     max_equity:15, stall_min:1,   // V2: trần vốn 15%/lệnh & stall≥1% (luôn áp)
-    use_reversal:$('scReversal').checked, use_pullback:$('scPullback').checked};  // V2.1
+    use_reversal:$('scReversal').checked, use_pullback:$('scPullback').checked,  // V2.1
+    strategy_mode:$('scStrategy').value, vab_timeframe:$('scVabTf').value,        // VAB
+    vol_mult:+$('scVolMult').value, squeeze_lookback:+$('scSqueeze').value,
+    funding_quantile:+$('scFundQ').value};                                        // FCL
   const payload={demo, label:$('scLabel').value, universe:$('scUniverse').value, days:+$('scDays').value, capital:+$('scCapital').value,
     auto_universe:$('scAuto').checked, auto_n:+$('scAutoNVal').value,
     tp_list:$('scTp').value, sl_list:$('scSl').value, topn_list:$('scTopn').value,
@@ -566,7 +580,7 @@ function renderScanFoot(rows){
 async function openTrades(row){
   $('scTradeDetail').classList.remove('hidden');
   $('tdWait').style.display='block'; $('tdBody').innerHTML=''; $('tdSummary').innerHTML='';
-  const o=scanCtx.opts||{}; const flags=[o.use_trend&&'Trend',o.use_trailing&&'Trail',o.use_market&&('Market EMA'+(o.market_ema||50)),o.use_stall&&'Stall',o.use_gainfilter&&'GainF',(o.max_equity?('Cap'+o.max_equity+'%'):''),(o.stall_min?('StallP'+o.stall_min+'%'):''),(o.use_reversal===false?'NoReversal':''),(o.use_pullback?'Pullback':'')].filter(Boolean).join(' · ')||'cơ bản';
+  const o=scanCtx.opts||{}; const flags=[o.use_trend&&'Trend',o.use_trailing&&'Trail',o.use_market&&('Market EMA'+(o.market_ema||50)),o.use_stall&&'Stall',o.use_gainfilter&&'GainF',(o.max_equity?('Cap'+o.max_equity+'%'):''),(o.stall_min?('StallP'+o.stall_min+'%'):''),(o.use_reversal===false?'NoReversal':''),(o.use_pullback?'Pullback':''),(o.strategy_mode==='vab'?('VAB '+(o.vab_timeframe||'1h')+' · Vol≥'+(o.vol_mult||3)+'x'):''),(o.strategy_mode==='funding'?('FCL · funding '+(o.funding_quantile||20)+'% âm nhất'):'')].filter(Boolean).join(' · ')||'cơ bản';
   $('tdMeta').textContent=`TP ${row['tp_%']}% · SL ${row['sl_%']}% · Top-${row.top_n} · ${scanCtx.days} ngày · ${flags}`+(scanCtx.demo?' · DEMO':'');
   $('scTradeDetail').scrollIntoView({behavior:'smooth'});
   const payload={demo:scanCtx.demo, universe:scanCtx.universe, days:scanCtx.days, capital:scanCtx.capital,

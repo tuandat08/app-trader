@@ -60,6 +60,54 @@ def fetch_recent(symbol, timeframe, limit=200, exchange=None) -> pd.DataFrame:
     return df.set_index("time").drop(columns=["ts"]).sort_index()
 
 
+def _funding_exchange():
+    """Sàn futures (USDT-M) để lấy funding rate. Không cần key cho dữ liệu công khai."""
+    import ccxt
+    return ccxt.binanceusdm({"enableRateLimit": True})
+
+
+def fetch_funding_history(symbol, days, use_cache=True, exchange=None) -> "pd.Series":
+    """Lịch sử funding rate (mốc 8h) cho 1 perp USDT-M. Trả Series index=thời gian, value=rate.
+    Binance giữ funding nhiều năm nên backtest 730 ngày OK."""
+    key = f"funding_{symbol.replace('/', '')}_{days}d.csv"
+    path = os.path.join(CACHE_DIR, key)
+    if use_cache and os.path.exists(path):
+        s = pd.read_csv(path, parse_dates=["time"]).set_index("time")["funding"]
+        return s
+    ex = exchange or _funding_exchange()
+    # ccxt futures dùng ký hiệu perp "BASE/QUOTE:QUOTE" (vd BTC/USDT:USDT)
+    perp = symbol if ":" in symbol else f"{symbol}:{symbol.split('/')[1]}"
+    since = ex.milliseconds() - days * 86400 * 1000
+    rows, cursor = [], since
+    while True:
+        batch = ex.fetch_funding_rate_history(perp, since=cursor, limit=1000)
+        if not batch:
+            break
+        rows += batch
+        cursor = batch[-1]["timestamp"] + 1
+        if len(batch) < 1000 or cursor >= ex.milliseconds():
+            break
+        time.sleep(ex.rateLimit / 1000)
+    if not rows:
+        return pd.Series(dtype=float)
+    df = pd.DataFrame([(r["timestamp"], r["fundingRate"]) for r in rows], columns=["ts", "funding"]).drop_duplicates("ts")
+    df["time"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
+    s = df.set_index("time")["funding"].astype(float).sort_index()
+    if use_cache:
+        s.rename("funding").to_frame().to_csv(path)
+    return s
+
+
+def attach_funding(h1: "pd.DataFrame", funding: "pd.Series") -> "pd.DataFrame":
+    """Gắn funding (8h) thành cột 'funding' trong h1 (ffill sang từng giờ). Không có -> NaN."""
+    h1 = h1.copy()
+    if funding is None or len(funding) == 0:
+        h1["funding"] = float("nan")
+    else:
+        h1["funding"] = funding.reindex(h1.index, method="ffill")
+    return h1
+
+
 def top_gainers(n=10, quote="USDT", min_volume_usd=20_000_000, max_change_pct=40.0,
                 exchange=None) -> list:
     """Top coin tăng 24h ĐÃ QUA bộ lọc an toàn (thanh khoản & không quá nóng)."""

@@ -338,7 +338,9 @@ def _raw_opts(body):
             "use_market", "market_ema", "use_stall", "stall_bars",
             "use_gainfilter", "gain_lo", "gain_hi",
             "max_equity", "stall_min",   # V2
-            "use_reversal", "use_pullback"]   # V2.1
+            "use_reversal", "use_pullback",   # V2.1
+            "strategy_mode", "vab_timeframe", "vol_mult", "squeeze_lookback",   # VAB
+            "funding_quantile"]   # FCL
     return {k: body.get(k) for k in keys}
 
 
@@ -362,6 +364,16 @@ def _improvements(body):
         # V2.1: thử nghiệm giả thuyết
         "use_reversal_exit": bool(body.get("use_reversal", True)),
         "use_pullback_entry": bool(body.get("use_pullback", False)),
+        # VAB (Volume Anomaly Breakout)
+        "strategy_mode": body.get("strategy_mode", "stochrsi"),
+        "vab_timeframe": body.get("vab_timeframe", "1h"),
+        "vol_mult": float(body.get("vol_mult", 3) or 3),
+        "squeeze_lookback": int(body.get("squeeze_lookback", 50) or 50),
+        "bb_period": int(body.get("bb_period", 20) or 20),
+        "atr_mult": float(body.get("atr_mult", 2) or 2),
+        # Funding Contrarian Long
+        "funding_quantile": float(body.get("funding_quantile", 20) or 20) / 100,
+        "funding_exit_pos": bool(body.get("funding_exit_pos", True)),
     }
 
 
@@ -436,17 +448,35 @@ class ScanManager:
                 else:
                     syms = [s.strip() for s in (body.get("universe") or "").split(",") if s.strip()] or DEFAULT_UNIVERSE
                 self.fetch_total = len(syms)
+                is_funding = body.get("strategy_mode") == "funding"
+                if is_funding:
+                    from data import fetch_funding_history, attach_funding, _funding_exchange
+                    fex = _funding_exchange()
                 data = {}
                 for s in syms:
                     self.status = f"Đang tải dữ liệu {s}…"
                     try:
-                        data[s] = (fetch_ohlcv(s, "1h", days, exchange=ex),
-                                   fetch_ohlcv(s, "1d", days + 10, exchange=ex))
+                        h1 = fetch_ohlcv(s, "1h", days, exchange=ex)
+                        d1 = fetch_ohlcv(s, "1d", days + 10, exchange=ex)
+                        if is_funding:
+                            try:
+                                fund = fetch_funding_history(s, days, exchange=fex)
+                                h1 = attach_funding(h1, fund)
+                            except Exception:
+                                h1 = attach_funding(h1, None)   # coin không có perp -> bỏ (funding NaN)
+                        data[s] = (h1, d1)
                     except Exception:
                         pass
                     self.fetch_done += 1
+                if is_funding:
+                    # chỉ giữ coin có funding thật (loại coin không có hợp đồng perp)
+                    data = {s: v for s, v in data.items()
+                            if "funding" in v[0].columns and v[0]["funding"].notna().any()}
                 if not data:
-                    self.phase = "error"; self.error = "Không tải được dữ liệu coin nào."; return
+                    self.phase = "error"
+                    self.error = ("Không tải được dữ liệu funding — coin trong rổ có thể không có hợp đồng perp."
+                                  if is_funding else "Không tải được dữ liệu coin nào.")
+                    return
 
             self.universe = list(data.keys())
             # --- Giai đoạn quét tổ hợp ---
@@ -625,13 +655,26 @@ def api_scan_trades():
         else:
             from data import fetch_ohlcv, make_exchange
             ex = make_exchange()
+            is_funding = body.get("strategy_mode") == "funding"
+            if is_funding:
+                from data import fetch_funding_history, attach_funding, _funding_exchange
+                fex = _funding_exchange()
             data = {}
             for s in universe:
                 try:
-                    data[s] = (fetch_ohlcv(s, "1h", days, exchange=ex),
-                               fetch_ohlcv(s, "1d", days + 10, exchange=ex))
+                    h1 = fetch_ohlcv(s, "1h", days, exchange=ex)
+                    d1 = fetch_ohlcv(s, "1d", days + 10, exchange=ex)
+                    if is_funding:
+                        try:
+                            h1 = attach_funding(h1, fetch_funding_history(s, days, exchange=fex))
+                        except Exception:
+                            h1 = attach_funding(h1, None)
+                    data[s] = (h1, d1)
                 except Exception:
                     pass
+            if is_funding:
+                data = {s: v for s, v in data.items()
+                        if "funding" in v[0].columns and v[0]["funding"].notna().any()}
             if not data:
                 return jsonify({"ok": False, "error": "Không tải được dữ liệu."}), 200
 
