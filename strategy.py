@@ -31,6 +31,9 @@ class Params:
     daily_stop: float = 0.05
     max_equity_per_trade: float = 0.0   # V2: trần vốn tối đa/lệnh (0 = không giới hạn; 0.15 = 15%)
     stall_min_profit: float = 0.0       # V2: mốc lời tối thiểu để KHÔNG bị cắt "chết yểu" (0.01 = 1%)
+    # --- V2.1 (thử nghiệm giả thuyết) ---
+    use_reversal_exit: bool = True      # thoát khi StochRSI cắt xuống. TẮT = để Trailing/SL/Stall tự quyết
+    use_pullback_entry: bool = False    # vào lúc "nghỉ lấy đà": nến H1 ĐỎ + StochRSI vùng thấp (thay vì xanh + cross up)
     # --- Cải tiến (mặc định TẮT để giữ nguyên baseline) ---
     use_trend_filter: bool = False   # chỉ vào khi giá > EMA (lọc downtrend)
     trend_ema: int = 50
@@ -70,8 +73,14 @@ def compute_signals(h1: pd.DataFrame, d1: pd.DataFrame, p: Params) -> pd.DataFra
     h1 = add_indicators(h1, d1, p)
     d1_ok = (h1["dk"] > h1["dd"]) & (h1["dk"] < p.ob_level)
     green = h1["close"] > h1["open"]
+    red = h1["close"] < h1["open"]
     from_oversold = h1[["k", "d"]].min(axis=1) < p.os_level
-    cond = d1_ok & h1["cross_up"] & from_oversold & green
+    if p.use_pullback_entry:
+        # Mua lúc "nghỉ lấy đà": nến H1 ĐỎ (giảm nhẹ) + StochRSI về vùng thấp,
+        # coin vẫn trong uptrend D1 / top-gainer. Tránh mua đu đỉnh lúc dựng cột xanh.
+        cond = d1_ok & red & from_oversold
+    else:
+        cond = d1_ok & h1["cross_up"] & from_oversold & green
     if p.use_trend_filter and "trend_ema" in h1.columns:
         cond = cond & (h1["close"] > h1["trend_ema"])  # chỉ vào khi trên EMA
     h1["entry_signal"] = cond
@@ -95,6 +104,8 @@ def params_from_config(cfg) -> Params:
         market_symbol=getattr(cfg, "market_symbol", "BTC/USDT"),
         max_equity_per_trade=getattr(cfg, "max_equity_per_trade", 0.0),
         stall_min_profit=getattr(cfg, "stall_min_profit", 0.0),
+        use_reversal_exit=getattr(cfg, "use_reversal_exit", True),
+        use_pullback_entry=getattr(cfg, "use_pullback_entry", False),
     )
 
 

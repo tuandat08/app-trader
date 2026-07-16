@@ -336,7 +336,9 @@ def _raw_opts(body):
     """Tuỳ chọn ở dạng 'khoá frontend' (dùng nhất quán để lưu & trả cho dashboard)."""
     keys = ["use_trend", "trend_ema", "use_trailing", "trail_pct",
             "use_market", "market_ema", "use_stall", "stall_bars",
-            "use_gainfilter", "gain_lo", "gain_hi"]
+            "use_gainfilter", "gain_lo", "gain_hi",
+            "max_equity", "stall_min",   # V2
+            "use_reversal", "use_pullback"]   # V2.1
     return {k: body.get(k) for k in keys}
 
 
@@ -357,6 +359,9 @@ def _improvements(body):
         # V2: trần vốn/lệnh & mốc lời tối thiểu cho stall (áp cho mọi tổ hợp trong lần quét)
         "max_equity_per_trade": float(body.get("max_equity", 15) or 15) / 100,
         "stall_min_profit": float(body.get("stall_min", 1) or 1) / 100,
+        # V2.1: thử nghiệm giả thuyết
+        "use_reversal_exit": bool(body.get("use_reversal", True)),
+        "use_pullback_entry": bool(body.get("use_pullback", False)),
     }
 
 
@@ -733,6 +738,12 @@ def api_signals():
                         "hint": "Cần máy nối được Binance. Đây là quét trực tiếp, không dùng demo."}), 200
 
 
+APP_VERSION = "V2 (trần vốn 15% · stall≥1% · lọc BTC>EMA)"
+
 if __name__ == "__main__":
-    print("Dashboard: http://127.0.0.1:5000  (Ctrl+C để dừng)")
+    print("=" * 60)
+    print(f"  Trader 3% Dashboard — phiên bản code: {APP_VERSION}")
+    print("  Nếu thấy dòng V2 này => đang chạy ĐÚNG code mới.")
+    print("  Dashboard: http://127.0.0.1:5000  (Ctrl+C để dừng)")
+    print("=" * 60)
     app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)

@@ -51,7 +51,7 @@ def decide_exit(pos, price, reversal, held_bars, p):
             return "SL", pos["sl"]
         if price >= pos["tp"]:
             return "TP", pos["tp"]
-    if reversal:
+    if p.use_reversal_exit and reversal:
         return "Reversal", price
     if p.use_stall_exit and held_bars >= p.stall_bars and price <= pos["entry"] * (1 + p.stall_min_profit):
         return "Stall", price
@@ -161,7 +161,7 @@ def run(cfg, should_stop=None):
                 held_bars = int((now_utc() - pd.to_datetime(pos["entry_time"])).total_seconds() // 3600)
                 # Chỉ tính đảo chiều (tốn phí gọi API) khi giá chưa chạm ngưỡng thoát
                 reason, _ = decide_exit(pos, px, False, held_bars, p)
-                if reason is None:
+                if reason is None and p.use_reversal_exit:
                     reason, _ = decide_exit(pos, px, _reversal_exit(sym, p, data_ex), held_bars, p)
                 if reason:
                     execu.cancel(sym, pos.get("stop_order_id"))

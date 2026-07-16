@@ -122,7 +122,7 @@ def run_backtest(data: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]], p: Params,
                 eff_sl = max(tr.sl, trail_stop)
                 if row["low"] <= eff_sl:
                     ex, reason = eff_sl, ("Trail" if trail_stop > tr.sl else "SL")
-                elif row["k"] > p.ob_level and row["d"] > p.ob_level and row["cross_down"]:
+                elif p.use_reversal_exit and row["k"] > p.ob_level and row["d"] > p.ob_level and row["cross_down"]:
                     ex, reason = float(row["close"]), "Reversal"
                 elif p.use_stall_exit and pp["bars"] >= p.stall_bars and float(row["close"]) <= tr.entry * (1 + p.stall_min_profit):
                     ex, reason = float(row["close"]), "Stall"
@@ -133,7 +133,7 @@ def run_backtest(data: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]], p: Params,
                     ex, reason = tr.sl, "SL"
                 elif row["high"] >= tr.tp:
                     ex, reason = tr.tp, "TP"
-                elif row["k"] > p.ob_level and row["d"] > p.ob_level and row["cross_down"]:
+                elif p.use_reversal_exit and row["k"] > p.ob_level and row["d"] > p.ob_level and row["cross_down"]:
                     ex, reason = float(row["close"]), "Reversal"
                 elif p.use_stall_exit and pp["bars"] >= p.stall_bars and float(row["close"]) <= tr.entry * (1 + p.stall_min_profit):
                     ex, reason = float(row["close"]), "Stall"

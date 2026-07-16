@@ -85,6 +85,10 @@ class Config:
     max_equity_per_trade: float = _get_float("MAX_EQUITY_PER_TRADE", 0.15)  # trần vốn 15%/lệnh
     stall_min_profit: float = _get_float("STALL_MIN_PROFIT", 0.01)   # cắt chết yểu nếu chưa lời >1%
 
+    # --- V2.1 (thử nghiệm giả thuyết) ---
+    use_reversal_exit: bool = _get_bool("USE_REVERSAL_EXIT", True)   # thoát khi StochRSI cắt xuống
+    use_pullback_entry: bool = _get_bool("USE_PULLBACK_ENTRY", False)  # vào lúc nến H1 đỏ (nghỉ lấy đà)
+
     # --- An toàn ---
     hard_stop_on_exchange: bool = _get_bool("HARD_STOP_ON_EXCHANGE", True)
     max_total_drawdown: float = _get_float("MAX_TOTAL_DRAWDOWN", 0.20)  # dừng bot nếu -20%
